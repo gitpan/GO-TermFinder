@@ -4,7 +4,7 @@ package GO::AnnotationProvider;
 # Author      : Gavin Sherlock
 # Date Begun  : September 26th 2002
 
-# $Id: AnnotationProvider.pm,v 1.9 2003/10/17 00:35:00 sherlock Exp $
+# $Id: AnnotationProvider.pm,v 1.10 2003/10/22 15:27:39 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -42,7 +42,7 @@ $VERSION = 0.1;
 
 =head1 NAME
 
-GO::AnnotationProvider
+GO::AnnotationProvider - abstract base class defining interface for how Annotation information should be provided
 
 =head1 DESCRIPTION
 
@@ -185,6 +185,8 @@ sub goIdsByDatabaseId{
 ############################################################################
 =pod
 
+=head2 goIdsByDatabaseId
+
 This public method returns a reference to an array of GOIDs that are
 associated with the supplied databaseId for a specific aspect.  If no
 annotations are associated with that databaseId in that aspect, then a
@@ -299,7 +301,8 @@ Usage:
 
     my $databaseId = $annotationProvider->databaseIdByStandardName($standardName);
 
-
+=cut
+##############################################################################
 
     $_[0]->__complainStubMethod;
 

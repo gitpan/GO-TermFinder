@@ -4,7 +4,7 @@ package GO::TermFinder;
 # Author      : Gavin Sherlock
 # Date Begun  : December 31st 2002
 
-# $Id: TermFinder.pm,v 1.25 2003/10/20 00:08:39 sherlock Exp $
+# $Id: TermFinder.pm,v 1.26 2003/11/01 19:55:56 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -37,6 +37,9 @@ package GO::TermFinder;
 GO::TermFinder - identify GO nodes that annotate a group of genes with a significant p-value
 
 =head1 Changes
+
+These changes listed are for the TermFinder module only.  To see a
+list of all changes to the distribution, then see the Changes file.
 
     0.1  : Initial release
 
@@ -124,7 +127,7 @@ use vars qw ($PACKAGE $VERSION);
 
 use GO::Node;
 
-$VERSION = '0.22';
+$VERSION = '0.23';
 $PACKAGE = 'GO::TermFinder';
 
 # class variables

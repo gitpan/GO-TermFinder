@@ -1,5 +1,14 @@
 Revision history for Perl extension GO-TermFinder.
 
+0.23 Sat Nov  1 11:56:43 2003
+
+	- GO::OntologyProvider::OntologyParser;
+
+	Added in check that a given non-comment line can actually have
+	a GOID extracted, which makes the error a more informative
+	when such a line is encountered, due to an error in an
+	ontology file.
+
 0.22 Sun Oct 19 16:54:38 2003
 
 	- GO::TermFinder

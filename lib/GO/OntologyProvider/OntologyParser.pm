@@ -5,7 +5,7 @@ package GO::OntologyProvider::OntologyParser;
 # Date Begun : Summer 2001
 # Rewritten  : September 29th 2002
 
-# $Id: OntologyParser.pm,v 1.12 2003/10/17 01:56:17 sherlock Exp $
+# $Id: OntologyParser.pm,v 1.13 2003/11/01 20:06:36 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -154,7 +154,7 @@ use GO::Node;
 
 use Storable qw(nstore);
 
-$VERSION = 0.1;
+$VERSION = 0.11;
 $PACKAGE = "GO::OntologyProvider::OntologyParser";
 
 ##################################################################
@@ -438,6 +438,19 @@ sub __getNodeInfoFromLine{
     # additional parents, but no other DBXRefs
 
     my ($nodeName, $goids) = split(/ ; /, $line);
+
+    # check that we can actually get some goids.  Added this in to
+    # deal with when a broken file that appeared on the GO site, it
+    # caused me to get email saying my code was broken...
+
+    if (!defined $goids || $goids eq ""){
+
+	die "There appears to be a problem with the ontology file.\n".
+	    "No GOIDs could be extracted from line $. in ". $self->__file ."\n".
+	    "The contents of that line in the file are :\n\n\'".$_[1]."\'\n\n".
+	    "Please correct the ontology file and try again.\n\n";
+	    
+    }
 
     # get rid of anything following the goids, that pertains to secondary parents
 
