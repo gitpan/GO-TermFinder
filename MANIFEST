@@ -1,0 +1,13 @@
+Changes
+MANIFEST
+Makefile.PL
+README
+VERSION
+examples/termFinderClient.pl
+lib/GO/AnnotationProvider.pm
+lib/GO/AnnotationProvider/AnnotationParser.pm
+lib/GO/Node.pm
+lib/GO/OntologyProvider.pm
+lib/GO/OntologyProvider/OntologyParser.pm
+lib/GO/TermFinder.pm
+test.pl
