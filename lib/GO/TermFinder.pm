@@ -4,7 +4,7 @@ package GO::TermFinder;
 # Author      : Gavin Sherlock
 # Date Begun  : December 31st 2002
 
-# $Id: TermFinder.pm,v 1.34 2004/05/07 16:51:03 sherlock Exp $
+# $Id: TermFinder.pm,v 1.35 2004/07/28 18:45:56 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -84,6 +84,10 @@ extremely improbable if the genes had simply been picked at random.
     implementation underneath, if used with the GMP library, that may
     even speed it up a little.
 
+    I tried this - it slows it down enormously due to loads of
+    Math::BigInt Perl side object overhead.  Need to simply write the
+    C code myself, and use XS.
+
 3.  Create new GO::Hypothesis and GO::HypothesisSet objects, so that
     it is easier to access the information generated about the p-value
     etc. of any particular GO node that annotates a set of genes.
@@ -110,7 +114,7 @@ use vars qw ($PACKAGE $VERSION $WARNINGS);
 
 use GO::Node;
 
-$VERSION = '0.41';
+$VERSION = '0.42';
 $PACKAGE = 'GO::TermFinder';
 
 $WARNINGS = 1; # toggle this to zero if you don't want warnings
@@ -295,6 +299,9 @@ sub __init{
 # background frequency of annotations in the genome
 
     my ($self) = @_;
+
+    # first we determine the databaseIds for the background
+    # distribution
 
     my @databaseIds;
 
@@ -690,11 +697,15 @@ Discovery Rate is also calculated:
 
     $self->{$kDatabaseId2OrigName} = $databaseId2OrigNameRef;
 
-    if (scalar ($self->__databaseIds) > $self->__totalNumGenes){
+    # note, we need to provide the client with a way of determining
+    # how many genes were used when calculating p-values for
+    # annotations
+
+    if (scalar ($self->genesDatabaseIds) > $self->__totalNumGenes){
 
 	if ($WARNINGS){
 
-	    print "You have provided a list corresponding to ", scalar ($self->__databaseIds), "genes, ",
+	    print "You have provided a list corresponding to ", scalar ($self->genesDatabaseIds), "genes, ",
 	    
 	    "yet you have indicated that there are only ", $self->__totalNumGenes, " in the genome.\n";
 	    
@@ -709,7 +720,7 @@ Discovery Rate is also calculated:
     # now we determine all the count for direct and indirect
     # annotations for the provided list of genes.
 
-    $self->{$kGoCounts} = $self->__buildHashRefOfAnnotations([$self->__databaseIds]);
+    $self->{$kGoCounts} = $self->__buildHashRefOfAnnotations([$self->genesDatabaseIds]);
 
     # now we have these counts, and because we determined the counts
     # of the background distribution during object construction, we
@@ -797,10 +808,21 @@ sub __allGoIdsForBackground{
 }
 
 #####################################################################
-sub __databaseIds{
+sub genesDatabaseIds{
 #####################################################################
-# This method returns an array of databaseIds corresponding to the
-# genes that were used to initialize the object.
+=pod 
+
+=head2 genesDatabaseIds
+
+This method returns an array of databaseIds corresponding to the genes
+that were used for the findTerms() method.  Thus it allows a client to
+find out how many actual entities their list of genes that were passed
+in mapped to, e.g. they may have passed in the same thing with two
+different names.  Using this method, immediately following use of the
+findTerms method, they will determine how many genes their list
+collapsed to.
+
+=cut
 
     return @{$_[0]->{$kDatabaseIds}};
 
@@ -878,7 +900,7 @@ sub __determineDatabaseIdsFromGenes{
 
     my ($self, $genesRef) = @_;
 
-    my (@databaseIds, $databaseId, %databaseIds, %genes);
+    my (@databaseIds, $databaseId, %databaseIds, %genes, %duplicates, %warned);
 
     foreach my $gene (@{$genesRef}){
 
@@ -889,11 +911,13 @@ sub __determineDatabaseIdsFromGenes{
 
 	if (exists ($genes{$gene})){
 
-	    if ($WARNINGS){
+	    if ($WARNINGS && !exists($warned{$gene})){
 
 		print "The gene name '$gene' was used more than once.\n";
 		print "It will only be considered once.\n\n";
 		
+		$warned{$gene} = undef;
+
 	    }
 
 	    next; # just skip to the next supplied gene
@@ -942,12 +966,17 @@ sub __determineDatabaseIdsFromGenes{
 
 	    if (!defined $databaseId){
 
-		# we'll print a warning if they say that the
-		# annotation file has all the genes, because really,
-		# we shouldn't have anything that doesn't give a
-		# databaseId back
+		# If we've already defined the total number of genes
+		# with annotation, and it's equal to the number of
+		# genes for the background distribution, and we're not
+		# using a population, we'll print a warning, as under
+		# these circumstances we shouldn't not get a
+		# databaseId.
 
-		if ($self->__totalNumAnnotatedGenes == $self->__totalNumGenes && $WARNINGS){
+		if (defined ($self->__totalNumAnnotatedGenes) && 
+		    $self->__totalNumAnnotatedGenes == $self->__totalNumGenes &&
+		    $WARNINGS &&
+		    !$self->__isUsingPopulation){
 
 		    print "\nThe name '$gene' did not correspond to an entry from the AnnotationProvider.\n";
 		    print "However, the client has indicated that all genes have annotation.\n";
@@ -971,21 +1000,32 @@ sub __determineDatabaseIdsFromGenes{
 	# make sure we only consider it once.
 
 	if (defined ($databaseId) && exists($databaseIds{$databaseId})){
-
-	    if ($WARNINGS){
-
-		print "More that one gene maps to the same databaseId.\n";
-		print "$gene maps to $databaseId, as did $databaseIds{$databaseId}.\n";
-		print "Only one will be used.\n\n";
-		
-	    }
-
+	    
 	    pop (@databaseIds); # get rid of the extra
+
+	    # and let's remember what it was, so we can give an
+	    # appropriate warning
+
+	    $duplicates{$databaseId}{$gene} = undef;
 
 	}
 
 	$databaseIds{$databaseId} = $gene if (defined ($databaseId));
 	$genes{$gene}             = undef;
+
+    }
+
+
+    if (%duplicates && $WARNINGS){
+	
+	print "The following databaseIds were represented multiple times.\n";
+	print "Each databaseId will only be considered once.\n";
+
+	foreach my $duplicate (sort keys %duplicates){
+
+	    print $duplicate, " represented by ", join(", ", sort keys %{$duplicates{$duplicate}}), "\n\n";
+
+	}
 
     }
 
@@ -1120,7 +1160,7 @@ sub __calculatePValues{
 
     my $self = shift;
 
-    my $numDatabaseIds = scalar $self->__databaseIds;
+    my $numDatabaseIds = scalar $self->genesDatabaseIds;
 
     my @pvalueArray;
     
@@ -1538,7 +1578,7 @@ sub __correctPvaluesBysimulation{
     # now get the number of genes in the original test set
     # for which terms were found.
     
-    my $numGenes = scalar $self->__databaseIds;
+    my $numGenes = scalar $self->genesDatabaseIds;
 
     # now we can finally run the simulations
 
@@ -1832,7 +1872,7 @@ sub __calculateFDR{
     # now get the number of genes in the original test set
     # for which terms were found.
     
-    my $numGenes = scalar $self->__databaseIds;
+    my $numGenes = scalar $self->genesDatabaseIds;
 
     # now we can finally run the simulations
 
@@ -1889,9 +1929,9 @@ sub __calculateFDR{
     # now we've run all the simulations, and counted for each real
     # hypothesis how many hypotheses from the simulations were better,
     # we calculate on average how many were better per simulation,
-    # then divide by the number of hypotheses that exceed this in our
-    # real data.  We threshold this at a maximum of 1, as we can't have
-    # a FDR of greater than 100%
+    # then divide by the number of hypotheses as good or better in our
+    # real data.  We threshold this at a maximum of 1, as we can't
+    # have a FDR of greater than 100%
 
     foreach (my $i = 0; $i < @realHypotheses; $i++){
 
@@ -1969,7 +2009,7 @@ sub __addAnnotationsToPValues{
 
     # now go through each databaseId, and add the information in
 
-    foreach my $databaseId ($self->__databaseIds) {
+    foreach my $databaseId ($self->genesDatabaseIds) {
 
 	# look at all goids for this database id
 	

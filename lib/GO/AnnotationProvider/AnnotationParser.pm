@@ -5,7 +5,7 @@ package GO::AnnotationProvider::AnnotationParser;
 # Date Begun : Summer 2001
 # Rewritten  : September 25th 2002
 
-# $Id: AnnotationParser.pm,v 1.30 2003/11/26 18:44:28 sherlock Exp $
+# $Id: AnnotationParser.pm,v 1.32 2004/07/28 17:12:10 sherlock Exp $
 
 # Copyright (c) 2003 Gavin Sherlock; Stanford University
 
@@ -167,7 +167,7 @@ use GO::AnnotationProvider;
 @ISA = qw (GO::AnnotationProvider);
 
 $PACKAGE = "GO::AnnotationProvider::AnnotationParser";
-$VERSION = "0.11";
+$VERSION = "0.12";
 
 # CLASS Attributes
 #
@@ -1589,7 +1589,7 @@ or:
 	
     }else{
 
-	if ($self->nameIsDatabaseId($name) && @{$self->goidsByDatabaseId(databaseId => $name,
+	if ($self->nameIsDatabaseId($name) && @{$self->goIdsByDatabaseId(databaseId => $name,
 									 aspect     => $aspect)}){
 
 	    $isAnnotated = 1;
@@ -1614,7 +1614,7 @@ or:
 	
 	    foreach my $databaseId ($self->databaseIdsForAmbiguousName($name)){
 
-		if (@{$self->goidsByDatabaseId(databaseId => $name,
+		if (@{$self->goIdsByDatabaseId(databaseId => $name,
 					       aspect     => $aspect)}){
 
 		    $isAnnotated = 1;
@@ -1824,8 +1824,15 @@ Usage:
 CVS info is listed here:
 
  # $Author: sherlock $
- # $Date: 2003/11/26 18:44:28 $
+ # $Date: 2004/07/28 17:12:10 $
  # $Log: AnnotationParser.pm,v $
+ # Revision 1.32  2004/07/28 17:12:10  sherlock
+ # bumped version
+ #
+ # Revision 1.31  2004/07/28 17:03:49  sherlock
+ # fixed bugs when calling goidsByDatabaseId instead of goIdsByDatabaseId
+ # on lines 1592 and 1617 - thanks to lfriedl@cs.umass.edu for spotting this.
+ #
  # Revision 1.30  2003/11/26 18:44:28  sherlock
  # finished making all the changes that were required to make it case
  # insensitive, and modified POD accordingly.  It appears to all work as

@@ -16,7 +16,7 @@ package GO::View;
 
 =head1 NAME
 
-GO::View - Creates a gif or png image for visualing the GO DAG
+GO::View - Creates a gif or png image for visualizing the GO DAG
 
 
 =head1 DESCRIPTION
@@ -447,11 +447,13 @@ sub _init {
     if ($args{-goid} && $args{-goid} !~ /^[0-9]+$/ && 
 	$args{-goid} !~ /^GO:[0-9]+$/) {
 
-	die "The example goid passed to $PACKAGE is GO:0000166.";
+	die "The goid ($args{-goid}) passed to $PACKAGE is is not in a recognized format, such as GO:0000166.";
 
     }
 	
     my $goid = $args{-goid};
+
+    # fix format of the GOID, so it is padded preceded with GO: and properly padded
 
     if ($goid && $goid !~ /^GO:[0-9]+$/) { 
 
@@ -476,7 +478,11 @@ sub _init {
 
     $self->{IMAGE_DIR} = $args{-imageDir};
 
-    if ($self->{IMAGE_DIR} !~ /\/$/) {  $self->{IMAGE_DIR} .= "/"; }
+    if ($self->{IMAGE_DIR} !~ /\/$/) {  
+
+	$self->{IMAGE_DIR} .= "/"; 
+
+    }
 
     my $suffix;
 
@@ -592,11 +598,12 @@ sub _createGraph {
 
     my ($self) = @_;
 
-    ####### If client does not ask for up (ancestor) tree and this is not
-    ####### for the special tree paths client asked for the given goid to
-    ####### its specified descendants (i.e. for GO Term Finder), then
-    ####### we need to determine how many generations of the descendants
-    ####### we can display.
+    # If client does not ask for up (ancestor) tree and this is not
+    # for the special tree paths client asked for the given goid to
+    # its specified descendants (i.e. for GO Term Finder), then we
+    # need to determine how many generations of the descendants we can
+    # display.
+
     if ($self->{TREE_TYPE} !~ /up/i && 
 	!$self->{DESCENDANT_GOID_ARRAY_REF}) {
 	
@@ -604,9 +611,10 @@ sub _createGraph {
 
     }
 
-    ###### If this is for the ancestor tree, we need to determine up to 
-    ###### which ancestor we want to display the tree paths. We will 
-    ###### display tree path up to $self->{TOP_GOID}
+    # If this is for the ancestor tree, we need to determine up to
+    # which ancestor we want to display the tree paths. We will
+    # display tree path up to $self->{TOP_GOID}
+
     if ($self->{TREE_TYPE} =~ /up/i) {
 
 	$self->_setTopGoid;
@@ -625,8 +633,7 @@ sub _createGraph {
 
 	$goid = $self->{TOP_GOID};
 
-    }
-    else {
+    }else {
 
 	$goid = $self->_goid;
 
@@ -638,11 +645,13 @@ sub _createGraph {
     my %foundEdge;
     
     $self->_addNode($goid);
+
     $foundNode{$goid}++;
 
-    ##### draw go_path for ancestor goid ($self->{GOID}) 
-    ##### to each descendant goid in @{$self->{DESCENDANT_GOID_ARRAY_REF}}.
-    ##### an example use is for GO Term Finder.
+    # draw go_path for ancestor goid ($self->{GOID}) to each
+    # descendant goid in @{$self->{DESCENDANT_GOID_ARRAY_REF}}.  An
+    # example use is for GO Term Finder.
+
     if ($self->{DESCENDANT_GOID_ARRAY_REF}) {
 	
 	my $topAncestorNode = 
@@ -691,13 +700,14 @@ sub _createGraph {
 
 	return;
 
-    }
-    
-    ##### draw part of the tree, and it can go up and down the tree.
+    } 
 
-    ##### draw up tree and only show ancestors in the paths from the given
-    ##### goid to the ancestor goid $self->{TOP_GOID}
-    ##### since there are too many nodes...
+    # draw part of the tree, and it can go up and down the tree.
+
+    # draw up tree and only show ancestors in the paths from the given
+    # goid to the ancestor goid $self->{TOP_GOID} since there are too
+    # many nodes...
+
     if ($self->{TREE_TYPE} =~ /up/i && 
 	$self->{NODE_NUM} > $self->{MAX_NODE}) {
 	
@@ -717,14 +727,13 @@ sub _createGraph {
     }
 		
     ##### draw down tree
+
     my $node = $self->_ontologyProvider->nodeFromId($goid);
 
     $self->_addChildOfTheNodeToGraph($node, 
 				     \%foundNode,
 				     \%foundEdge);
 
-    return;
-    
 }
 
 ################################################################
@@ -900,12 +909,11 @@ sub _createAndShowImage {
 
     if ($graphText =~ /graph \[bb=\"0,0,([0-9]+),([0-9]+)\" *\]\;/) {
        
-	$width = $1*$self->{WIDTH_DISPLAY_RATIO};
+	$width  = $1 * $self->{WIDTH_DISPLAY_RATIO};
 
-	$height = $2*$self->{HEIGHT_DISPLAY_RATIO};
+	$height = $2 * $self->{HEIGHT_DISPLAY_RATIO};
 
-    }
-    else {
+    }else {
 
 	$self->graph->as_png($self->{IMAGE_DIR}."goPath.$$.png");
 
@@ -917,9 +925,9 @@ sub _createAndShowImage {
 
     my $border = 25;
     
-    my $mapWidth = $width+2*$border;
+    my $mapWidth  = $width  + 2 * $border;
 
-    my $mapHeight = $height+2*$border;
+    my $mapHeight = $height + 2 * $border;
 
     my $keyY;
 
@@ -936,11 +944,9 @@ sub _createAndShowImage {
 
 	if (!$self->{GENE_NAME_HASH_REF_FOR_GOID}) {
 
-	    $mapHeight += int((length($self->{MAP_NOTE})*6/($mapWidth-100))*15) 
-		+ 65;
+	    $mapHeight += int((length($self->{MAP_NOTE})*6/($mapWidth-100))*15) + 65;
 
-	}
-	else {
+	}else {
 
 	    $mapHeight += 50;
 
@@ -948,11 +954,10 @@ sub _createAndShowImage {
 
     }
 
-    my $gd = GO::View::GD->new(width=>$mapWidth,
-				   height=>$mapHeight);
+    my $gd = GO::View::GD->new(width  => $mapWidth,
+			       height => $mapHeight);
 
-    $gd->im->rectangle(0, 0, $mapWidth-1, $mapHeight-1,
-		       $gd->blue);
+    $gd->im->rectangle(0, 0, $mapWidth-1, $mapHeight-1, $gd->blue);
 
     $self->_drawFrame($gd, $mapWidth, $mapHeight);
 
@@ -972,22 +977,19 @@ sub _createAndShowImage {
 
 	    next;
 
-	}
-	elsif ($preLine && $line =~ /\;$/ && 
-	       $line !~ / *node[0-9]/) {
+	}elsif ($preLine && $line =~ /\;$/ && $line !~ / *node[0-9]/) {
 
 	    $line = $preLine.$line;
 
 	    undef $preLine;
 
 	}
+
 	if ($line =~ / *node[0-9]+ *\[(label=.+)\]\;$/i) {
 
 	    push(@nodeLine, $1);
 
-	}
-	elsif ($line 
-	       =~ / *node[0-9]+ *-> *node[0-9]+ \[pos=\"e,(.+)\"\]\;$/i) {
+	}elsif ($line  =~ / *node[0-9]+ *-> *node[0-9]+ \[pos=\"e,(.+)\"\]\;$/i) {
 
 	    push(@edgeLine, $1);
 
@@ -1039,21 +1041,19 @@ sub _createAndShowImage {
 
 	print OUT $gd->im->png;
 
-    }
-    else {
+    }else {
 
 	print OUT $gd->im->gif;
 
     }
+
     close OUT;
 
     if ($self->{CREATE_IMAGE_ONLY}) {
 	
 	return $imageFile;
 
-    }
-
-    if (!$self->{CREATE_IMAGE_ONLY}) {
+    }else{
 
 	my $map = $gd->imageMap;
 
@@ -1108,7 +1108,11 @@ sub _drawNode {
 
 	}
 	
-	if (!$self->{MOVE_Y}) { $self->{MOVE_Y} = 0; }
+	if (!$self->{MOVE_Y}) { 
+
+	    $self->{MOVE_Y} = 0;
+
+	}
 
 	my $x1 = $2*$self->{WIDTH_DISPLAY_RATIO}-$boxW/2 + $border;
 
@@ -1181,10 +1185,8 @@ sub _drawNode {
 
 	my $onInfoText;
 
-	if (($self->{TOP_GOID} && 
-	     $goid && $goid eq $self->{TOP_GOID}) ||
-	    (!$self->{TOP_GOID} && $goid &&
-	     $goid eq $self->_goid)) {
+	if (( $self->{TOP_GOID} && $goid && $goid eq $self->{TOP_GOID}) ||
+	    (!$self->{TOP_GOID} && $goid && $goid eq $self->_goid)) {
 
 	    $self->_drawUpArrow($gd, $goid, ($x1+$x2)/2-7, 
 				($x1+$x2)/2+7, $y1-15, 10, 
@@ -1194,14 +1196,14 @@ sub _drawNode {
 	
 	#### draw box
 
-	$gd->drawBar(barColor=>$barColor,
-		     numX1=>$x1,
-		     numX2=>$x2,
-		     numY=>$y1,
-		     linkUrl=>$linkUrl,
-		     barHeight=>$boxH,
-		     outline=>$outline,
-		     onInfoText=>$onInfoText);
+	$gd->drawBar(barColor   => $barColor,
+		     numX1      => $x1,
+		     numX2      => $x2,
+		     numY       => $y1,
+		     linkUrl    => $linkUrl,
+		     barHeight  => $boxH,
+		     outline    => $outline,
+		     onInfoText => $onInfoText);
 	
 	       
 	#### draw go_term 
@@ -1210,7 +1212,7 @@ sub _drawNode {
 
 	foreach my $label (@label) {
 
-	    if (!$label || $label =~ /^GO:/i){ next; }
+	    next if (!$label || $label =~ /^GO:/i);
 
 	    if (!$goid) {
 
@@ -1224,8 +1226,7 @@ sub _drawNode {
 
 		$nameColor = $gd->blue;
 
-	    }
-	    elsif ($goid eq $self->_goid) {
+	    }elsif ($goid eq $self->_goid) {
 
 		$nameColor = $gd->red;
 
@@ -1237,13 +1238,12 @@ sub _drawNode {
 
 	    if ($goid) {
 
-		$gd->drawName(name=>$label,
-			      nameColor=>$nameColor,  
-			      numX1=>$numX1,
-			      numY=>$numY1);
+		$gd->drawName(name      => $label,
+			      nameColor => $nameColor,  
+			      numX1     => $numX1,
+			      numY      => $numY1);
 
-	    }
-	    else {
+	    }else {
 
 		# $numX1 -= 10;
 
@@ -1292,10 +1292,10 @@ sub _drawNode {
 
 	    my $numY1 = $y1 + $i*10+2;
 
-	    $gd->drawName(name=>$label,
-			  nameColor=>$gd->maroon,  
-			  numX1=>$numX1,
-			  numY=>$numY1);
+	    $gd->drawName(name      => $label,
+			  nameColor => $gd->maroon,  
+			  numX1     => $numX1,
+			  numY      => $numY1);
 
 	}
 
@@ -1386,14 +1386,14 @@ sub _drawUpArrow {
     
     }
 
-    $gd->drawBar(barColor=>$gd->blue,
-		 numX1=>$X1,
-		 numX2=>$X2,
-		 numY=>$Y,
-		 linkUrl=>$linkUrl,
-		 barHeight=>$barHeight,
-		 outline=>1,
-		 arrow=>'up');
+    $gd->drawBar(barColor  => $gd->blue,
+		 numX1     => $X1,
+		 numX2     => $X2,
+		 numY      => $Y,
+		 linkUrl   => $linkUrl,
+		 barHeight => $barHeight,
+		 outline   => 1,
+		 arrow     => 'up');
 
 }
 
@@ -1414,40 +1414,40 @@ sub _drawKeys {
 #########################################################################
 
     my ($self, $gd, $mapWidth, $keyY, $isTop) = @_;
-
+    
     if (!$self->{GENE_NAME_HASH_REF_FOR_GOID}) {
-
+	
 	my $y = $keyY;
-
+	
 	my $boxH = 10;
-
+	
 	my $startX = 50;
 	
-	$gd->drawBar(barColor=>$gd->lightBlue,
-		     numX1=>$startX,
-		     numX2=>$startX+20,
-		     numY=>$y,
-		     barHeight=>$boxH);
+	$gd->drawBar(barColor  => $gd->lightBlue,
+		     numX1     => $startX,
+		     numX2     => $startX + 20,
+		     numY      => $y,
+		     barHeight => $boxH);
 
 	my $numX1 = $startX + 20;
 
-	$gd->drawName(name=>" = GO term with child(ren)",
-		      nameColor=>$gd->black,  
-		      numX1=>$numX1,
-		      numY=>$y-2);
+	$gd->drawName(name      => " = GO term with child(ren)",
+		      nameColor => $gd->black,  
+		      numX1     => $numX1,
+		      numY      => $y-2);
 
 	$y += 15;
 
-	$gd->drawBar(barColor=>$gd->grey,
-		     numX1=>$startX,
-		     numX2=>$startX+20,
-		     numY=>$y,
-		     barHeight=>$boxH);
+	$gd->drawBar(barColor  => $gd->grey,
+		     numX1     => $startX,
+		     numX2     => $startX + 20,
+		     numY      => $y,
+		     barHeight => $boxH);
 
-	$gd->drawName(name=>" = GO term with no child(ren)",
-		      nameColor=>$gd->black,  
-		      numX1=>$numX1,
-		      numY=>$y-2);
+	$gd->drawName(name      => " = GO term with no child(ren)",
+		      nameColor => $gd->black,  
+		      numX1     => $numX1,
+		      numY      => $y-2);
 
 	my $maxTextLen = int(($mapWidth-2*$startX)/6);
 
@@ -1457,14 +1457,14 @@ sub _drawKeys {
 	
 	$y += 15;
 
-	foreach my $text (@geneNumExample) {
+	foreach my $text (@geneNumExample){
 
 	    $text =~ s/^ *//;
 
-	    $gd->drawName(name=>$text,
-			  nameColor=>$gd->black,  
-			  numX1=>$startX,
-			  numY=>$y-2);
+	    $gd->drawName(name      => $text,
+			  nameColor => $gd->black,  
+			  numX1     => $startX,
+			  numY      => $y-2);
 
 	    $y += 15;
 
@@ -1475,15 +1475,23 @@ sub _drawKeys {
     }
 
     my $y1 = $keyY;
+
     my $boxH = 15;
+
     my $boxW = 88;
+
     my $startX = 48 + ($mapWidth - $boxW*6 - 35 - 48)/2;
     
     my $twoLine;
+
     if ($startX < 48) {
+
 	$startX = 48 + ($mapWidth - $boxW*3 - 15 - 48)/2;
+
 	$twoLine = 1;
+
 	if (!$isTop) { $y1 -= 10; }
+
     }
 
     ####### new code
@@ -1494,10 +1502,10 @@ sub _drawKeys {
 
     }
 
-    $gd->drawName(name=>'pvalue:',
-		  nameColor=>$gd->black,  
-		  numX1=>10,
-		  numY=>$y1+1);
+    $gd->drawName(name      => 'pvalue:',
+		  nameColor => $gd->black,  
+		  numX1     => 10,
+		  numY      => $y1+1);
     
     my $i;
     my $preX2 = $startX;
@@ -1526,20 +1534,20 @@ sub _drawKeys {
 
 	my $x2 = $x1 + $boxW;
 
-	$gd->drawBar(barColor=>$barColor,
-		     numX1=>$x1,
-		     numX2=>$x2,
-		     numY=>$y1,
-		     barHeight=>$boxH);
+	$gd->drawBar(barColor  => $barColor,
+		     numX1     => $x1,
+		     numX2     => $x2,
+		     numY      => $y1,
+		     barHeight => $boxH);
 
 	my $numX1 = $x1 + ($boxW-length($name)*6)/2;
 
         my $numY1 = $y1 + 2;
 
-	$gd->drawName(name=>$name,
-		      nameColor=>$gd->black,  
-		      numX1=>$numX1,
-		      numY=>$numY1);
+	$gd->drawName(name      => $name,
+		      nameColor => $gd->black,  
+		      numX1     => $numX1,
+		      numY      => $numY1);
 
 	$preX2 = $x2;
 
@@ -1566,9 +1574,9 @@ sub _drawFrame {
 
     my ($self, $gd, $width, $height) = @_;
 
-    $gd->drawFrameWithLabelAndDate(width=>$width,
-				   height=>$height,
-				   text=>$self->{IMAGE_LABEL});
+    $gd->drawFrameWithLabelAndDate(width  => $width,
+				   height => $height,
+				   text   => $self->{IMAGE_LABEL});
 
 }
 
@@ -1590,7 +1598,7 @@ sub _createGraphObject {
 
     my ($self) = @_;
 
-    $self->{GRAPH} = GraphViz->new(node=>{shape=>'box'});
+    $self->{GRAPH} = GraphViz->new(node => { shape => 'box' });
 
 }
 
@@ -1617,7 +1625,7 @@ sub _addNode {
 	my $label = $self->_processLabel($goid, 30);
 
 	$self->graph->add_node($goid,
-			 label=>$label);
+			       label => $label);
 
 	return;
 
@@ -1639,8 +1647,7 @@ sub _addNode {
 
 	$stdGoid = $self->_formatGoid($goid);
 
-    }
-    else {
+    }else {
 
 	$stdGoid = "GO:".$goid;
 
@@ -1650,11 +1657,14 @@ sub _addNode {
 
 	$label = $self->_processLabel($label)."\n".$stdGoid;
 
+    }else { 
+
+	$label = $stdGoid;
+
     }
-    else { $label = $stdGoid; }
    
     $self->graph->add_node($goid,
-			   label=>$label);
+			   label => $label);
   
     return;
 
@@ -1678,7 +1688,7 @@ sub _addEdge {
 
     my ($self, $parentGoid, $childGoid) = @_;
 
-    $self->graph->add_edge($parentGoid=>$childGoid);
+    $self->graph->add_edge($parentGoid => $childGoid);
 
 }
 
@@ -1912,10 +1922,12 @@ sub _initGoidFromOntology {
     my ($self) = @_;
 
     # gene_ontology super node
+
     my $rootNode = $self->_ontologyProvider->rootNode;
 
     # node for molecular_function, biological_process, or 
     # cellular_component 
+
     my ($topNode) = $rootNode->childNodes;
 
     return $topNode->goid;
@@ -2004,8 +2016,8 @@ sub _initPvaluesGeneNamesDescendantGoids {
    
     }
 
-    $self->{DESCENDANT_GOID_ARRAY_REF} = \@directAnnotatedGoid;
-    $self->{PVALUE_HASH_REF_FOR_GOID} = \%pvalue4goid;
+    $self->{DESCENDANT_GOID_ARRAY_REF}   = \@directAnnotatedGoid;
+    $self->{PVALUE_HASH_REF_FOR_GOID}    = \%pvalue4goid;
     $self->{GENE_NAME_HASH_REF_FOR_GOID} = \%loci4goid;
 
     return $count;
@@ -2017,8 +2029,7 @@ sub _initVariablesFromConfigFile {
 ##########################################################################
     my ($self, $configFile) = @_;
 
-    open(CONF, "$configFile") || 
-	die "Can't open '$configFile' for reading:$!";
+    open(CONF, "$configFile") || die "Can't open '$configFile' for reading:$!";
 
     while(<CONF>) {
 
@@ -2036,54 +2047,46 @@ sub _initVariablesFromConfigFile {
 
 	    $self->{MAX_NODE} = $value;
 
-	}
-	if ($name =~ /^maxNodeNameWidth/i) {
+	}elsif ($name =~ /^maxNodeNameWidth/i) {
 
 	    $self->{MAX_NODE_NAME_WIDTH} = $value;
 
-	}
-	if ($name =~ /^widthDisplayRatio/i) {
+	}elsif ($name =~ /^widthDisplayRatio/i) {
 
 	    $self->{WIDTH_DISPLAY_RATIO} = $value;
 
-	}
-	if ($name =~ /^heightDisplayRatio/i) {
+	}elsif ($name =~ /^heightDisplayRatio/i) {
 
 	    $self->{HEIGHT_DISPLAY_RATIO} = $value;
 
-        }
-	if ($name =~ /^minMapWidth/i) {
+        }elsif ($name =~ /^minMapWidth/i) {
 
 	    $self->{MIN_MAP_WIDTH} = $value;
 
-	}
-	if ($name =~ /^minMapHeight4TopKey/i) {
+	}elsif ($name =~ /^minMapHeight4TopKey/i) {
 
 	    $self->{MIN_MAP_HEIGHT_FOR_TOP_KEY} = $value;
 
-	}
-	if ($name =~ /^minMapWidth4OneLineKey/i) {
+	}elsif ($name =~ /^minMapWidth4OneLineKey/i) {
 
 	    $self->{MIN_MAP_WIDTH_FOR_ONE_LINE_KEY} = $value;
 
-	}
-	if ($name =~ /^mapNote/i) {
+	}elsif ($name =~ /^mapNote/i) {
 
 	    $self->{MAP_NOTE} = $value;
     
-	}
-	if ($name =~ /^binDir/i) {
+	}elsif ($name =~ /^binDir/i) {
 
 	    $ENV{PATH} .= ":".$value;
 
-	}
-	if ($name =~ /^libDir/i) {
+	}elsif ($name =~ /^libDir/i) {
 
 	    $ENV{LD_LIBRARY_PATH} .= ":".$value;
 
 	}
     
     }
+
     close(CONF);
 
 }
@@ -2140,28 +2143,23 @@ sub _color4pvalue {
 
 	return $gd->orange; 
 
-    }
-    elsif ($pvalue <= 1e-8) {
+    }elsif ($pvalue <= 1e-8) {
 
 	return $gd->yellow; 
 
-    }
-    elsif ($pvalue <= 1e-6) {
+    }elsif ($pvalue <= 1e-6) {
 
 	return $gd->green4;
 
-    }
-    elsif ($pvalue <= 1e-4) {
+    }elsif ($pvalue <= 1e-4) {
 
 	return $gd->lightBlue;
 
-    }
-    elsif ($pvalue <= 1e-2) {
+    }elsif ($pvalue <= 1e-2) {
 
 	return $gd->blue4;
 
-    }
-    else {
+    }else {
 
 	return $gd->tan;
 

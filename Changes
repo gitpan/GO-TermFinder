@@ -1,5 +1,50 @@
 Revision history for GO-TermFinder group of modules.
 
+0.62 Wed Jul 28 11:46:08 2004
+
+	No major new functionality - small bug fix release
+
+	- AnnotationParser.pm
+
+	fixed capitalization bugs when calling goidsByDatabaseId() in
+	nameIsAnnotated() instead of goIdsByDatabaseId() on lines 1592
+	and 1617 - thanks to lfriedl@cs.umass.edu for spotting this.
+
+	- GoView.conf
+
+	Fixed typo in GoView.conf : totalNumGene should be
+	totalNumGenes - thanks to John Matese for spotting this one.
+
+	- GO::TermFinder
+
+	Made __databaseIds() method of GO::TermFinder public, and
+	named it genesDatabaseIds, as I realized it is the only way
+	that a client can determine how many genes were actually used
+	when calculating p-values.  Before, I was using the number of
+	genes that were passed in, but they will get collapsed if more
+	than one maps to the same databaseId.
+
+	- batchGOView.pl
+
+	Modified batchGOView.pl to use the genesDatabaseIds method.
+	Removed its use of the CategorizeGenes function in
+	GO::Utils::General, as I don't think was was any reasonable
+	logic for using it (that I can remember).
+
+	- GO::TermFinder
+
+	Fixed lots of spurious warnings that were due to checking the
+	state of a variable before it had been set, when using a user
+	defined background population - thanks to Jeremy Gollub for
+	spotting this one.
+
+	- GO::TermFinder
+
+	If a gene is padded in multiple times in either the list of
+	genes of interest, or the background population, you should
+	only be warned about that gene once for each list, rather than
+	every time the gene is encountered.
+
 0.61 Fri May  7 11:23:36 2004
 
 	- GO::TermFinder

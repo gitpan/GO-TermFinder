@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Id: batchGOView.pl,v 1.4 2004/05/05 22:25:38 sherlock Exp $
+# $Id: batchGOView.pl,v 1.5 2004/07/28 17:28:40 sherlock Exp $
 
 # Date   : 4th December 2003
 # Author : Gavin Sherlock
@@ -58,7 +58,7 @@ files:
 batchGOView.pl GoView.conf genes.txt genes2.txt
 
 An html file, batchGOView.html will be created, that will allow you to
-browse the results from all of the input lists of genes in a sinple
+browse the results from all of the input lists of genes in a simple
 format.  A frame on the left will have a list of the files that were
 input, and the frame on the right will display the results for the
 clicked on link.
@@ -84,8 +84,8 @@ sub Usage{
 
 This program takes a list of files, each of which contain a list of
 genes, with one gene per line.  It will findTerms for the lists of
-genes in each of the GO aspects, and then generate an html page
-with a GO::View graphic that summarize the result.
+genes in each of the GO aspects, and then generate an html page with a
+GO::View graphic that summarize the result.
 
 It will use the first supplied argument as the annotation file, the
 second argument ontology file, the third argument as the aspect of the
@@ -135,7 +135,9 @@ my $report  = GO::TermFinderReport::Html->new();
 
 # now open an html file that will have a list of links for all the results
 
-open (LIST, ">".$conf->{'outDir'}."batchGOViewList.html")|| die "Cannot create ".$conf->{'outDir'}."list.html : $!";
+open (LIST, ">".$conf->{'outDir'}."batchGOViewList.html")
+
+    || die "Cannot create ".$conf->{'outDir'}."list.html : $!";
 
 # go through each file
 
@@ -147,33 +149,9 @@ foreach my $file (@ARGV){
 
     my @genes = GenesFromFile($file);
 
-    # now we have to decide which we can analyze
-    
-    my (@list, @notFound, @ambiguous);
+    # now find terms
 
-    CategorizeGenes(annotation  => $annotation,
-		    genes       => \@genes,
-		    ambiguous   => \@ambiguous,
-		    unambiguous => \@list,
-		    notFound    => \@notFound);
-
-    # technically, those genes that are not found should still
-    # contribute to the finding of terms (they will just be considered
-    # as unannotated).
-
-    # obviously if no genes are found as unambiguous, then we will
-    # find nothing of interest.
-
-    if (!@list){
-
-	print "No known genes exist in $file, so skipping.\n";
-	next;
-
-    }
-
-    # now we want to find terms
-
-    my @pvalues = $termFinder->findTerms(genes        => [(@list, @notFound)],
+    my @pvalues = $termFinder->findTerms(genes        => \@genes,
 					 calculateFDR => $conf->{'calculateFDR'});
 
     # now we hand these off to the GO::View module, to create the image etc.
@@ -202,7 +180,7 @@ foreach my $file (@ARGV){
     }
     
     my $htmlFile = &GenerateHTMLFile($file, $goView->imageMap, \@pvalues,
-				     scalar(@list) + scalar(@notFound), "Terms for $file"); 
+				     scalar($termFinder->genesDatabaseIds), "Terms for $file"); 
 
     print LIST a({-href=>$htmlFile,
 		  -target=>'result'}, $htmlFile), br;

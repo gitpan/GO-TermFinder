@@ -35,6 +35,7 @@ t/GO-AnnotationProvider-AnnotationParser.t
 t/GO-Node.t
 t/GO-OntologyProvider-OntologyParser.t
 t/GO-TermFinder.t
+t/compile.t
 t/gene_association.sgd
 t/gene_association.test
 t/pod-coverage.t
