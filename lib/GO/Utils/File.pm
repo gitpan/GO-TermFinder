@@ -29,7 +29,7 @@ use Exporter;
 @ISA = ('Exporter');
 @EXPORT_OK = qw(GenesFromFile);
 
-$VERSION = 0.1;
+$VERSION = 0.11;
 
 ##########################################################################
 sub GenesFromFile{
@@ -75,7 +75,7 @@ Usage:
 	    $gene =~ s/\cM//g; # remove Control-M characters
 	    
 	    $gene =~ s/\s+$//; # remove any trailing or leading whitespace
-	    $gene =~ s/^\s//;
+	    $gene =~ s/^\s+//;
 	    
 	    next unless $gene;
 	    

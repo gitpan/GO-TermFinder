@@ -1,5 +1,41 @@
 Revision history for GO-TermFinder group of modules.
 
+0.70 Thu Nov 18 11:55:10 2004
+
+	- GO::TermFinder
+
+	Now uses an entirely new set of code for calculating the
+	probability based on the hypergeometric distribution (written
+	by Ihab Awad).  The new code is written in C++, and interfaced
+	to Perl using SWIG.  For long running batch jobs, with > 100
+	lists of genes (using for instance analyze.pl in the examples
+	directory), the new code is up to 3 times faster.  Note, that
+	installation now requires an ANSI C++ compiler - see the
+	README for more details.
+
+	Note that the ability to use the binomial distribution for the
+	probability calculation no longer exists - it will always use
+	the hypergeometric distribution now.
+
+	- GO::Utils::File
+
+	fixed small bug in that only one leading space would be
+	stripped from a gene name in GenesFromFile - thanks to Linda
+	McMahan at Princeton for spotting this one.
+
+	- GO::TermFinder
+
+	made error message a little more explicit when a goid used to
+	annotate a gene (as indicated by the annotation provider) does
+	not appear in the provided ontology - thanks to John Matese
+	for the suggestion.
+
+	- GO::View
+
+	small addition that hopefully deals with a problem sometimes
+	seen when running on Windows, that I think is due to line
+	endings produced by the dot program.
+
 0.64 Sun Aug 15 23:30:32 2004
 
 	- GO::View

@@ -24,12 +24,17 @@ lib/GO/OntologyProvider.pm
 lib/GO/OntologyProvider/OntologyParser.pm
 lib/GO/Reference.pm
 lib/GO/TermFinder.pm
+lib/GO/TermFinder/Native.pm
 lib/GO/TermFinderReport/Html.pm
 lib/GO/TermFinderReport/Text.pm
 lib/GO/Utils/File.pm
 lib/GO/Utils/General.pm
 lib/GO/View.pm
 lib/GO/View/GD.pm
+native/Distributions.cxx
+native/Distributions.hxx
+native/Makefile.PL
+native/Native_wrap.cxx
 t/GO-AnnotatedGene.t
 t/GO-AnnotationProvider-AnnotationParser.t
 t/GO-Node.t
@@ -42,3 +47,4 @@ t/pod-coverage.t
 t/pod.t
 t/process.ontology
 test.pl
+META.yml                                Module meta-data (added by MakeMaker)

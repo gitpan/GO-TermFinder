@@ -167,7 +167,7 @@ use GO::View::GD;
 use vars qw ($PACKAGE $VERSION);
 
 $PACKAGE = 'GO::View';
-$VERSION = 0.13;
+$VERSION = 0.14;
 
 my $kReplacementText = "<REPLACE_THIS>";
 
@@ -1048,7 +1048,13 @@ sub _createAndShowImage {
     # hence we can determine the size of the image, the positions and sizes
     # of every box, and how to draw the edges between the boxes 
 
-    my $graphText = $self->graph->as_text; 
+    my $graphText = $self->graph->as_text;
+
+    # the following line *may* fix reported problems when running on
+    # Windows, that I think are a result of dot.exe using CRLF line
+    # endings.
+
+    $graphText =~ s/\015?\012/\n/g;
 
     # if we can get the height and width, we'll get them
 

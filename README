@@ -1,4 +1,4 @@
-GO-TermFinder version 0.60
+GO-TermFinder version 0.70
 ==========================
 
 This set of modules can be have been developed under the auspices of
@@ -33,23 +33,30 @@ To install this software, you will need some limited Unix experience,
 and some limited Perl experience.  If in doubt, consult your local
 Perl guru or systems administrator.  You also need access to a Unix
 machine, such as MacOSX, or a Windows machine running Cygwin, a Linux
-box, a Sun machine etc..
+box, a Sun machine etc..  Note, that to install the GO-TermFinder
+distribution after version 0.70, you need a C++ compiler.  We have
+tested installation on MacOSX, Linux, Solaris and Windows (using
+Cygwin), all using GCC as the compiler, and everything seems to work.
+Thus far, we have not been successful installing under ActiveState
+Perl with Microsoft Visual C++, though we have not tried too hard.  If
+you can provide a patch for the Makefile.PL that gets it to work in
+that environment, we'll happily accept it.
 
 To install the software do the following after downloading the
 distribution:
 
 First decompress the gzipped tarfile, e.g:
 
-   tar zxvf GO-TermFinder-0.6.tar.gz
+   tar zxvf GO-TermFinder-0.7.tar.gz
 
 or:
 
-   gunzip GO-TermFinder-0.6.tar.gz
-   tar xvf GO-TermFinder-0.6.tar
+   gunzip GO-TermFinder-0.7.tar.gz
+   tar xvf GO-TermFinder-0.7.tar
 
 Then change into the created directory:
 
-   cd GO-TermFinder-0.6
+   cd GO-TermFinder-0.7
 
 Then actually install it, using the following commands:
 
@@ -172,12 +179,19 @@ CONTACT INFO
 If you have any suggestions, bug fixes, etc., please send email to
 sherlock@genome.stanford.edu.
 
-NOTE
+NOTES
 
 The ontology files in the t/ directory are solely for the purposes of
 running the test suite.  You should get the latest versions from the
 Gene Ontology website (http://www.geneontology.org/) for your own
 analyses.
+
+If you seem to be getting some odd behavior that you can't explain,
+make sure that the ontology and association files you downloaded from
+the Gene Ontology site have not had their line endings converted - the
+software is expecting them to be \n, which is what the files have on
+the GO ftp site.  It is possible for ftp programs to sometimes mangle
+them into control-M's.
 
 COPYRIGHT AND LICENCE (the 'MIT license')
 
@@ -200,5 +214,5 @@ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-Copyright (C) 2003 Gavin Sherlock, Stanford University
+Copyright (C) 2003-2004 Gavin Sherlock, Stanford University
 

@@ -4,7 +4,7 @@ package GO::TermFinder;
 # Author      : Gavin Sherlock
 # Date Begun  : December 31st 2002
 
-# $Id: TermFinder.pm,v 1.35 2004/07/28 18:45:56 sherlock Exp $
+# $Id: TermFinder.pm,v 1.40 2004/11/17 21:11:15 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -44,13 +44,12 @@ the number of genes that exist in the particular genome (or in a
 selected background distribution from the genome), and their
 annotation, and the frequency with which the GO nodes are annotated
 across the provided set of genes.  The P-value is simply calculated
-using either the hypergeometric distribution (the binomial
-distribution is also provided as an option), as the probability of x
-or more out of n genes having a given annotation, given that G of N
-have that annotation in the genome in general.  The hypergeometric
-distribution (sampling without replacement) is more accurate, though
-slower to calculate than the binomial distibution (sampling with
-replacement).
+using the hypergeometric distribution as the probability of x or more
+out of n genes having a given annotation, given that G of N have that
+annotation in the genome in general.  We chose the hypergeometric
+distribution (sampling without replacement) since it is more accurate,
+though slower to calculate, than the binomial distibution (sampling
+with replacement).
 
 In addition, a corrected p-value can be calculated, to correct for
 multiple hypothesis testing.  The correction factor used is the total
@@ -77,32 +76,16 @@ extremely improbable if the genes had simply been picked at random.
     the ambiguous name; decide on a case by case basis (potentially
     useful if running on command line)).
 
-2.  Would probably be a good idea to test using the Math::BigInt module to
-    deal with the factorials and nChooser calculations, so that they
-    are more accurate, rather than the log versions that I currently
-    have.  The latest version of Math::BigInt can have a C
-    implementation underneath, if used with the GMP library, that may
-    even speed it up a little.
-
-    I tried this - it slows it down enormously due to loads of
-    Math::BigInt Perl side object overhead.  Need to simply write the
-    C code myself, and use XS.
-
-3.  Create new GO::Hypothesis and GO::HypothesisSet objects, so that
+2.  Create new GO::Hypothesis and GO::HypothesisSet objects, so that
     it is easier to access the information generated about the p-value
     etc. of any particular GO node that annotates a set of genes.
 
-4.  Instead of all the global variables, $k..., replace them with
+3.  Instead of all the global variables, $k..., replace them with
     constants, which may improve runtime, as the optimizer should
     optimize the hash look ups to look like hard-coded strings at
     runtime, rather than variable lookups.
 
-5.  Create a GO::Math class, to extract out all the statistics from
-    this module, so that only the logic of what math is needed to get
-    the p-values, rather than the implementations themselves are left.
-    This will decrease the complexity of this module considerably.
-
-6.  Lots of other stuff....
+4.  Lots of other stuff....
 
 =cut
 
@@ -113,8 +96,9 @@ use diagnostics;
 use vars qw ($PACKAGE $VERSION $WARNINGS);
 
 use GO::Node;
+use GO::TermFinder::Native;
 
-$VERSION = '0.42';
+$VERSION = '0.50';
 $PACKAGE = 'GO::TermFinder';
 
 $WARNINGS = 1; # toggle this to zero if you don't want warnings
@@ -129,18 +113,11 @@ my $kGoCounts                = $PACKAGE.'::__goCounts';
 my $kGOIDsForDatabaseIds     = $PACKAGE.'::__goidsForDatabaseIds';
 my $kDatabaseIds             = $PACKAGE.'::__databaseIds';
 my $kTotalNumAnnotatedGenes  = $PACKAGE.'::__totalNumAnnotatedGenes';
-my $kMethod                  = $PACKAGE.'::__method';
 my $kCorrectionMethod        = $PACKAGE.'::__correctionMethod';
 my $kShouldCalculateFDR      = $PACKAGE.'::__shouldCalculateFDR';
-my $kLogFactorials           = $PACKAGE.'::__logFactorials';
-my $kLogNCr                  = $PACKAGE.'::__logNCr';
 my $kPvalues                 = $PACKAGE.'::__pValues';
 my $kDatabaseId2OrigName     = $PACKAGE.'::__databaseId2OrigName';
-
-# the methods by which the p-value can be calculated
-
-my %kAllowedMethods = ('hypergeometric' => undef,
-		       'binomial'       => undef);
+my $kDistributions           = $PACKAGE.'::__distributions';
 
 # the methods by which the p-value can be corrected
 
@@ -387,48 +364,12 @@ sub __init{
     $self->{$kTotalGoNodeCounts}      = $totalNodeCounts;
     $self->{$kTotalNumAnnotatedGenes} = $populationSize;
 
-    $self->__cacheLogFactorials;
+    # create a Distributions object, which has C code for all the various 
+    # Math that we will do.
+
+    $self->{$kDistributions} = GO::TermFinder::Native::Distributions->new($self->__totalNumGenes);
 
 }
-
-#####################################################################
-sub __cacheLogFactorials{
-#####################################################################
-# The maximum factorial that will ever have to be calculated is for
-# the total number of genes that exist, so we wil cache that many.  If
-# the client uses the binomial, then they only ever need to calculate
-# the factorial for the number of genes passed into findTerms, but as
-# the hypergeometric is the default, we will go with that.
-#
-# Since :
-#
-#     n!  = n * (n-1) * (n-2) ... * 1
-#
-# Then :
-#
-# log(n!) = log(n * (n-1) * (n-2) ... * 1)
-#
-#         = log(n) + log(n-1) + log(n-2) ... + log(1)
-#
-
-    my ($self) = @_;
-
-    my @logFactorials = (0, 0); # cache of log factorials, initialize for 0 and 1
-
-    my $num = $self->__totalNumGenes;
-
-    for (my $i = 2; $i <= $num; $i++){
-
-	$logFactorials[$i] = $logFactorials[$i-1] + log($i);
-	
-    }
-
-    # now store the factorials
-
-    $self->{$kLogFactorials} = \@logFactorials;
-
-}
-
 
 =pod
 
@@ -643,17 +584,6 @@ Discovery Rate is also calculated:
 
     }
 
-    # see if they gave us an allowable method by which to calculate
-    # the p-value
-
-    $self->{$kMethod} = $args{'method'} || 'hypergeometric';
-
-    if (!exists $kAllowedMethods{$self->__method}){
-
-	die $self->__method." is not an allowed method.  Use one of :". join(", ", keys %kAllowedMethods);
-
-    }
-
     # see if they gave us an allowable method by which to correct for
     # multiple hypotheses
 
@@ -848,16 +778,6 @@ sub __pValues{
 }
 
 #####################################################################
-sub __method{
-#####################################################################
-# This method returns the method by which the client has chosen to
-# have their p-values calculated - either binomial or hypergeometric.
-
-    return $_[0]->{$kMethod};
-
-}
-
-#####################################################################
 sub __correctionMethod{
 #####################################################################
 # This method returns the name of the method by which the client has
@@ -923,6 +843,23 @@ sub __determineDatabaseIdsFromGenes{
 	    next; # just skip to the next supplied gene
 
 	}
+
+	#######
+	#######
+
+	# NOTE
+
+	# We should put in some kind of check when they are using a
+	# background population that each gene in the supplied list of
+	# interest has a counterpart in the background population.  At
+	# least in the case where a databaseId can be got, there
+	# should be a counterpart in the background population that
+	# correponds to the same databaseId.  If one can't be got,
+	# it's difficult to know if they just used a different
+	# synonym.
+
+	#######
+	#######
 
 	if ($self->__annotationProvider->nameIsAmbiguous($gene)){
 
@@ -1118,7 +1055,7 @@ sub __allGOIDsForDatabaseId{
 
 		if ($WARNINGS){
 
-		    print STDERR "Warning : $goid, used to annotate $databaseId, does not appear in the ontology.\n";
+		    print STDERR "Warning : $goid, used to annotate $databaseId with an aspect of ".$self->aspect.", does not appear in the provided ontology.\n";
 		    
 		}
 		    
@@ -1208,8 +1145,8 @@ sub __processOneGOID{
 # the current GOID, and the P-value of that number of annotations.
 # The pvalue is calculated as the probability of observing x or more
 # positives in a sample on n, given that there are M positives in a
-# population of N.  This can be calculated using the hypergeometric
-# distribution, or the binomial.
+# population of N.  This is calculated using the hypergeometric
+# distribution.
 #
 # It returns a hash reference encoding that information.
 
@@ -1219,32 +1156,19 @@ sub __processOneGOID{
     my $x = $self->__numAnnotationsToGoId($goid);
     my $N = $self->__totalNumGenes();
 
-
-    my $method;
-
-    if ($self->__method eq 'hypergeometric'){
-
-	$method = "__pValueByHypergeometric";
-
-    }else{
-
-	$method = "__pValueByBinomial";
-
-    }
-	
-    my $pvalue = $self->$method($x, $n, $M, $N);
+    my $pvalue = $self->{$kDistributions}->pValueByHypergeometric($x, $n, $M, $N);
 
     my $node = $self->__ontologyProvider->nodeFromId($goid) || $kUnannotatedNode;
-    
+
     my $hashRef = {
 	
 	NODE                  => $node,
 	PVALUE		      => $pvalue,
 	NUM_ANNOTATIONS       => $x,
 	TOTAL_NUM_ANNOTATIONS => $M
-	    
+
 	};
-    
+
     return $hashRef;
 
 }
@@ -1281,178 +1205,6 @@ sub __totalNumGenes{
 
 
     return $_[0]->{$kArgs}{totalNumGenes};
-
-}
-
-############################################################################
-sub __binomial{
-############################################################################
-# This method calculates the binomial distribution probability, given
-# $j successes from $numGenes trials, given a probability of $p of
-# success of any given trial.  Trials are assumed to be independent.
-#
-#
-# The binomial distribution probability is equal to:
-#
-#    ( numGenes choose j ) * p^j * (1-p)^(numGenes - j)
-#
-#
-# we can do this in log space, to avoid buffer overflows:
-#
-#   log(( numGenes choose j ) * p^j * (1-p)^(numGenes - j))
-#
-# = log(numGenes choose j) + log(p^j) + log((1-p)^(numGenes - j))
-#
-# = log(numGenes choose j) + j*log(p) + (numGenes - j) * log(1-p)
-#
-# Note, we have a problem with log of zero if p is 1.  In this case,
-# the binomial is equal to 1, because if the probability of a success
-# is 1 then all trials will be successful, so the probability of j of
-# numGenes successes must be 1.
-#
-
-    my ($self, $j, $numGenes, $p) = @_;
-
-    if ($p != 1){
-
-	return exp($self->__logNCr($numGenes, $j) + $j * log($p) + ($numGenes - $j) * log(1-$p));
-
-    }else{
-
-	return 1;
-
-    }	
-
-}
-
-############################################################################
-sub __hypergeometric{
-############################################################################
-# This method returns the hypergeometric probability value for
-# sampling without replacement.  The calculation is the probability of
-# picking x positives from a sample of n, given that there are M
-# positives in a population of N.
-#
-# The value is calculated as:
-#
-#       (M choose x) (N-M choose n-x)
-# P =   -----------------------------
-#               N choose n
-#
-# where generically n choose r is number of permutations by which r
-# things can be chosen from a population of n (see __logNCr())
-#
-# However, given that these n choose r values may be extremely high (as they are
-# are calculated using factorials) it is safer to do this instead in log space,
-# as we are far less likely to have an overflow.
-#
-# thus :
-#
-# log(P) = log(M choose x) + log(N-M choose n-x) - log (N choose n);
-#
-# this means we can now calculate log(n choose R) for our
-# hypergeometric calculation (see below).
-#
-    my ($self, $x, $n, $M, $N) = @_;
-
-    return exp($self->__logNCr($M, $x) + $self->__logNCr($N - $M, $n-$x) - $self->__logNCr($N, $n));
-
-}
-
-############################################################################
-sub __logNCr{
-############################################################################
-# This method returns the log of n choose R.  This means that it can do the
-# calculation in log space itself.
-#
-#
-#           n!
-# nCr =  ---------
-#        r! (n-r)!
-#
-# which means:
-#
-#
-#
-# log(nCr) = log(n!) - (log(r!) + log((n-r)!))
-#
-
-    my ($self, $n, $r) = @_;
-
-    if (!exists $self->{$kLogNCr}{$n}{$r}){
-
-	$self->{$kLogNCr}{$n}{$r} = $self->__logFact($n) - ($self->__logFact($r) + $self->__logFact($n - $r));
-
-    }
-
-    return $self->{$kLogNCr}{$n}{$r};
-
-}
-
-############################################################################
-sub __logFact{
-############################################################################
-# This method returns the log of a factorial, from our previously calculated
-# cache (see __cacheLogFactorials()).
-#
-
-    return $_[0]->{$kLogFactorials}->[$_[1]];
-
-}    
-
-############################################################################
-sub __pValueByHypergeometric{
-############################################################################
-# This method calculates the pvalue of of observing x or more positives from
-# a sample of n, given that there are M positives in a population of N
-
-    my ($self, $x, $n, $M, $N) = @_;
-
-    my $pvalue = 0;
-
-    # we can optimize this, because if their are only 5 positives in
-    # the whole population, and our sample size is 20, there is no
-    # point of calculating probabilities for 6 through 20, as a priori
-    # you cannot get that many.
-
-    my $min = ($M < $n) ? $M : $n; 
-
-    # simply add up the probabilities for each x through n
-
-    for (my $i = $x; $i <= $min; $i++){
-
-	$pvalue += $self->__hypergeometric($i, $n, $M, $N);
-
-    }
-
-    return ($pvalue);
-
-}
-
-
-
-############################################################################
-sub __pValueByBinomial{
-############################################################################
-# This method calculate the pvalue of of observing x or more positives
-# from a sample of n, given that there are M positives in a population
-# of N
-
-    my ($self, $x, $n, $M, $N) = @_;
-
-    my $pvalue = 0;
-
-    my $probability = $M/$N;
-
-    # simply add up the probabilities for each x through n
-
-    for (my $i = $x; $i <= $n; $i++){
-
-	$pvalue += $self->__binomial($i, $n, $probability);
-
-    }
-
-    return ($pvalue);
 
 }
 
@@ -1671,9 +1423,8 @@ sub __saveVariables{
 
     my %variables;
 
-    my @keys = ($kMethod, $kCorrectionMethod, $kShouldCalculateFDR,
-		$kDatabaseIds, $kDatabaseId2OrigName, $kGoCounts,
-		$kPvalues);
+    my @keys = ($kCorrectionMethod, $kShouldCalculateFDR, $kDatabaseIds, 
+		$kDatabaseId2OrigName, $kGoCounts, $kPvalues);
 
     foreach my $key (@keys){
 
@@ -1695,7 +1446,7 @@ sub __restoreVariables{
 
     foreach my $key (%{$hashRef}){
 
-	$self->{$key} = $hashRef->{$key};
+      $self->{$key} = $hashRef->{$key};
 
     }
 
@@ -2084,5 +1835,6 @@ __END__
 
     Gavin Sherlock; sherlock@genome.stanford.edu
     Elizabeth Boyle; ell@mit.edu
+    Ihab Awad; ihab@genome.stanford.edu
 
 =cut
