@@ -1,11 +1,11 @@
 use Test;
-BEGIN { plan tests => 1123 };
+BEGIN { plan tests => 1127, todo => [1112] };
 
 # File       : GO-TermFinder.t
 # Author     : Gavin Sherlock
 # Date Begun : September 1st 2003
 
-# $Id: GO-TermFinder.t,v 1.4 2003/12/03 02:30:25 sherlock Exp $
+# $Id: GO-TermFinder.t,v 1.5 2003/12/11 19:47:35 sherlock Exp $
 
 # This file forms a set of tests for the GO::TermFinder class
 
@@ -19,8 +19,13 @@ use GO::OntologyProvider::OntologyParser;
 
 $|=1;
 
+# turn off warnings from the TermFinder
+
+$GO::TermFinder::WARNINGS = 0;
+
 my $ontologyFile   = "t/process.ontology";
 my $annotationFile = "t/gene_association.sgd"; 
+my $aspect         = "P";
 
 # we'll check that all the public methods still exist in the interface
 
@@ -32,7 +37,7 @@ my $annotation = GO::AnnotationProvider::AnnotationParser->new(annotationFile=>$
 
 my $termFinder = GO::TermFinder->new(annotationProvider=> $annotation,
 				     ontologyProvider  => $ontology,
-				     aspect            => 'P');
+				     aspect            => $aspect);
 
 ok($termFinder->isa("GO::TermFinder"));
 
@@ -106,7 +111,7 @@ my @newpvalues = $termFinder->findTerms(genes=>[qw(ypl250c
 my $newTermFinder = GO::TermFinder->new(annotationProvider=> $annotation,
 					ontologyProvider  => $ontology,
 					population        => [$annotation->allDatabaseIds],
-					aspect            => 'P');
+					aspect            => $aspect);
 
 my @poppvalues = $newTermFinder->findTerms(genes=>[qw(ypl250c
 						      Met11
@@ -156,7 +161,7 @@ my $nextTermFinder = GO::TermFinder->new(annotationProvider=> $annotation,
 								  Met2
 								  MuP1
 								  MeT6)],
-					 aspect            => 'P');
+					 aspect            => $aspect);
 
 
 @pvalues = $nextTermFinder->findTerms(genes=>[qw(ypl250c
@@ -188,6 +193,51 @@ foreach my $pvalue (@pvalues){
     ok($val, "1.00");
 
 }
+
+# Now we need a test to see what happens when we create a term finder,
+# and find terms for three 'nonsense' genes, to check that it doesn't
+# cause a problem - we'll defined the population as being of a size
+# of 3 more than exist in the annotation file, to accommodate these
+# 3 extra nonsense genes
+
+my @genes = qw (foo bar baz);
+
+my $numGenes = scalar(@genes);
+
+my $populationSize = $annotation->numAnnotatedGenes + $numGenes;
+
+my $nonsenseTester = GO::TermFinder->new(annotationProvider=> $annotation,
+					 ontologyProvider  => $ontology,
+					 aspect            => $aspect,
+					 totalNumGenes     => $populationSize);
+
+@pvalues = $nonsenseTester->findTerms(genes=>\@genes);
+
+# grab best node, which should be the 'unannotated' node
+
+my $hypothesis = shift(@pvalues);
+
+# check attributes
+
+ok($hypothesis->{NODE}->term, "unannotated");
+ok($hypothesis->{NODE}->goid, "GO:XXXXXXX");
+
+# all our tested genes should be annotated to the node
+
+ok($hypothesis->{NUM_ANNOTATIONS}, $numGenes);
+
+# the total number of annotations to this node out of all genes should
+# be the total number of genes minus those which have an annotation to
+# this aspect - however, in the current set of test data, one of the genes
+# is annotated with a node that doesn't appear in the ontology file, and thus
+# the TermFinder treats it as being unannotated.  Unless we update the
+# test data, we will not be able to use this test at the moment....
+#
+# Thus, in the BEGIN block, this is marked as todo (it is test 1112)
+
+ok($hypothesis->{TOTAL_NUM_ANNOTATIONS}, 
+
+   ($populationSize - $annotation->numAnnotatedGenes($aspect)));
 
 # Now let's test some of the math function insider the TermFinder.
 
@@ -400,8 +450,13 @@ sub compareHypotheses{
  CVS information:
 
  # $Author: sherlock $
- # $Date: 2003/12/03 02:30:25 $
+ # $Date: 2003/12/11 19:47:35 $
  # $Log: GO-TermFinder.t,v $
+ # Revision 1.5  2003/12/11 19:47:35  sherlock
+ # added in some tests to check that TermFinder behaves correctly in the
+ # case that unrecognized gene names are passed in, which was not working
+ # properly previously.
+ #
  # Revision 1.4  2003/12/03 02:30:25  sherlock
  # added in a bunch of tests to be more precise in the testing of the
  # term finder, and to test the functionality of providing a population

@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Id: analyze.pl,v 1.4 2003/11/26 18:39:11 sherlock Exp $
+# $Id: analyze.pl,v 1.5 2003/12/16 23:39:52 sherlock Exp $
 
 # Date   : 16th October 2003
 # Author : Gavin Sherlock
@@ -36,6 +36,9 @@ use diagnostics;
 use GO::TermFinder;
 use GO::AnnotationProvider::AnnotationParser;
 use GO::OntologyProvider::OntologyParser;
+
+use GO::Utils::File    qw (GenesFromFile);
+use GO::Utils::General qw (CategorizeGenes);
 
 $|=1;
 
@@ -114,73 +117,19 @@ foreach my $file (@ARGV){
 
     print "Analyzing $file\n";
 
-    my $outfile = $file.".terms";
-
-    open (IN,  $file)        || die "Cannot open $file : $!";
-    open (OUT, ">".$outfile) || die "Cannot make $outfile : $!"; 
-
-    my @genes;
-    my @lines;
-
-    my $var = chr(13); # to deal with Mac end of line 
-
-    while (<IN>){
-
-	if (/$var/o){ 
-
-	    # if it's a Mac file multiple lines get read at once, so
-	    # we have to split on the end-of line character
-
-	    @lines = split($var, $_);
-
-	}else{
-
-	    @lines = ($_);
-
-	}
-
-	foreach my $gene (@lines){
-
-	    $gene =~ s/\cM//g; # remove Control-M characters
-	    
-	    $gene =~ s/\s+$//; # remove any trailing or leading whitespace
-	    $gene =~ s/^\s//;
-	    
-	    next unless $gene;
-	    
-	    push (@genes, $gene);
-
-	}
-
-    }
-
-    close IN;
+    my @genes = GenesFromFile($file);    
 
     my (@list, @notFound, @ambiguous);
 
-    foreach my $gene (@genes) {
+    CategorizeGenes(annotation  => $annotation,
+		    genes       => \@genes,
+		    ambiguous   => \@ambiguous,
+		    unambiguous => \@list,
+		    notFound    => \@notFound);
 
-	if ($annotation->nameIsAmbiguous($gene)){
+    my $outfile = $file.".terms";
 
-	    push(@ambiguous, $gene);
-	    print "$gene is ambiguous\n";
-	    next;
-
-	}
-
-	my $name = $annotation->standardNameByName($gene);
-
-	if (defined $name){
-
-	    push(@list, $gene);
-
-	}else{
-
-	    push(@notFound, $gene);
-
-	}
-
-    }
+    open (OUT, ">".$outfile) || die "Cannot make $outfile : $!"; 
 
     if (@list){
 

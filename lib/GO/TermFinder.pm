@@ -4,7 +4,7 @@ package GO::TermFinder;
 # Author      : Gavin Sherlock
 # Date Begun  : December 31st 2002
 
-# $Id: TermFinder.pm,v 1.31 2003/12/03 02:45:21 sherlock Exp $
+# $Id: TermFinder.pm,v 1.32 2003/12/11 19:49:29 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -103,12 +103,14 @@ use strict;
 use warnings;
 use diagnostics;
 
-use vars qw ($PACKAGE $VERSION);
+use vars qw ($PACKAGE $VERSION $WARNINGS);
 
 use GO::Node;
 
-$VERSION = '0.3';
+$VERSION = '0.31';
 $PACKAGE = 'GO::TermFinder';
+
+$WARNINGS = 1; # toggle this to zero if you don't want warnings
 
 # class variables
 
@@ -246,6 +248,12 @@ sub __checkAndStoreArgs{
 
     }
 
+    if (exists($args{'totalNumGenes'})){
+
+	$self->{$kArgs}{'totalNumGenes'} = $args{'totalNumGenes'};
+
+    }
+
     # now check that we didn't get a funky combination
 
     if (exists($args{'population'}) && exists($args{'totalNumGenes'})){
@@ -299,9 +307,13 @@ sub __init{
 	# have provided a totalNumGenes that is less than the number
 	# of genes that the annotation provider knows about
 
-	print "The annotation provider indicates that there are more genes than the client indicated.\n";
-	print "The annotation provider indicates there are $populationSize, while the client indicated only ", $self->__totalNumGenes, ".\n";
-	print "Thus, assuming the correct total number of genes is that indicated by the annotation provider.\n";
+	if ($WARNINGS){
+
+	    print "The annotation provider indicates that there are more genes than the client indicated.\n";
+	    print "The annotation provider indicates there are $populationSize, while the client indicated only ", $self->__totalNumGenes, ".\n";
+	    print "Thus, assuming the correct total number of genes is that indicated by the annotation provider.\n";
+
+	}
 
 	$self->{$kArgs}{totalNumGenes} = $populationSize;
 
@@ -522,11 +534,15 @@ sub findTerms{
 
     if (scalar ($self->__databaseIds) > $self->__totalNumGenes){
 
-	print "You have provided a list corresponding to ", scalar ($self->__databaseIds), "genes, ",
-	
-	"yet you have indicated that there are only ", $self->__totalNumGenes, " in the genome.\n";
+	if ($WARNINGS){
 
-	print "No probabilities can be calculated.\n";
+	    print "You have provided a list corresponding to ", scalar ($self->__databaseIds), "genes, ",
+	    
+	    "yet you have indicated that there are only ", $self->__totalNumGenes, " in the genome.\n";
+	    
+	    print "No probabilities can be calculated.\n";
+
+	}
 
 	return (); # simply return an empty list
 
@@ -657,29 +673,41 @@ sub __determineDatabaseIdsFromGenes{
 
 	if (exists ($genes{$gene})){
 
-	    print "The gene name '$gene' was used more than once.\n";
-	    print "It will only be considered once.\n\n";
-	    
+	    if ($WARNINGS){
+
+		print "The gene name '$gene' was used more than once.\n";
+		print "It will only be considered once.\n\n";
+		
+	    }
+
 	    next; # just skip to the next supplied gene
 
 	}
 
 	if ($self->__annotationProvider->nameIsAmbiguous($gene)){
 
-	    print "$gene is an ambiguous name.\n";
+	    print "$gene is an ambiguous name.\n" if $WARNINGS;
 
 	    if ($self->__annotationProvider->nameIsStandardName($gene)){
 
-		print "Since $gene is used as a standard name, it will be assumed to be one.\n\n";
+		if ($WARNINGS){
+
+		    print "Since $gene is used as a standard name, it will be assumed to be one.\n\n";
 	
+		}
+
 		$databaseId = $self->__annotationProvider->databaseIdByStandardName($gene);
 	
 		push (@databaseIds, $databaseId);
 		
 	    }else{
 		
-		print "Since $gene is an ambiguous alias, it will not be used.\n\n";
+		if ($WARNINGS){
+
+		    print "Since $gene is an ambiguous alias, it will not be used.\n\n";
 		
+		}
+
 	    }
 	    
 	}else{
@@ -703,7 +731,7 @@ sub __determineDatabaseIdsFromGenes{
 		# we shouldn't have anything that doesn't give a
 		# databaseId back
 
-		if ($self->__totalNumAnnotatedGenes == $self->__totalNumGenes){
+		if ($self->__totalNumAnnotatedGenes == $self->__totalNumGenes && $WARNINGS){
 
 		    print "\nThe name '$gene' did not correspond to an entry from the AnnotationProvider.\n";
 		    print "However, the client has indicated that all genes have annotation.\n";
@@ -728,9 +756,13 @@ sub __determineDatabaseIdsFromGenes{
 
 	if (defined ($databaseId) && exists($databaseIds{$databaseId})){
 
-	    print "More that one gene maps to the same databaseId.\n";
-	    print "$gene maps to $databaseId, as did $databaseIds{$databaseId}.\n";
-	    print "Only one will be used.\n\n";
+	    if ($WARNINGS){
+
+		print "More that one gene maps to the same databaseId.\n";
+		print "$gene maps to $databaseId, as did $databaseIds{$databaseId}.\n";
+		print "Only one will be used.\n\n";
+		
+	    }
 
 	    pop (@databaseIds); # get rid of the extra
 
@@ -766,10 +798,17 @@ sub __buildHashRefOfAnnotations{
 
 	# get goids, if the databaseId is not a fake one
 
-	my @goids = $self->__allGOIDsForDatabaseId($databaseId) if ($databaseId !~ /^$kFakeIdPrefix/o);
+	my @goids;
+
+	# need the next line separately from the declaration of my
+	# @goids as @goids is not necessarily reset if the regex fails
+
+	# don't know if this is a bug or a feature in Perl.... :-)
+
+	@goids = $self->__allGOIDsForDatabaseId($databaseId) if ($databaseId !~ /^$kFakeIdPrefix/o);
 
 	if (!@goids) { 
-	    
+
 	    # If gene has no annotation, annotate it to the top node
 	    # (Gene_Ontology), and its immediate child (the aspect itself)
 	    # and the 'unannotated' node.
@@ -821,8 +860,12 @@ sub __allGOIDsForDatabaseId{
 
 	    if (!$self->__ontologyProvider->nodeFromId($goid)){ # 
 
-		print STDERR "Warning : $goid, used to annotate $databaseId, does not appear in the ontology.\n";
-		
+		if ($WARNINGS){
+
+		    print STDERR "Warning : $goid, used to annotate $databaseId, does not appear in the ontology.\n";
+		    
+		}
+		    
 		# don't record any annotations for this databaseId - 
 		# will mean it just gets Gene_Ontology, its child, and unannotated
 

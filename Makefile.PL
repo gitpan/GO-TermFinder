@@ -6,7 +6,10 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
 	      'NAME'		=> 'GO-TermFinder',
 	      'VERSION_FROM'	=> 'VERSION', # finds $VERSION
-	      'PREREQ_PM'	=> { Storable => '1.0.1.12' }, # e.g., Module::Name => 1.1
+	      'PREREQ_PM'	=> { Storable => '1.0.1.12',
+				     GD       => 0, # comment this out if you don't want to use GO::View 
+				     GraphViz => 0  # comment this out if you don't want to use GO::View 
+				     },
 	      ($] >= 5.005 ?    ## Add these new keywords supported since 5.005
 	       (ABSTRACT        => 'A collection of modules for working with gene ontologies',
 		AUTHOR          => 'Gavin Sherlock <sherlock@genome.stanford.edu>') : ()),

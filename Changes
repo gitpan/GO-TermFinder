@@ -1,4 +1,24 @@
-Revision history for Perl extension GO-TermFinder.
+Revision history for GO-TermFinder group of modules.
+
+0.50 Tue Dec 16 17:34:50 2003
+
+	Big news is that a version of Shuai Weng's (from SGD) GO::View
+	module has been added in, which can create a graphic
+	representation of the results of GO::TermFinder.  This gives a
+	much better way to intuitively look at the results.  A bunch
+	of other stuff was added in to support this, including a batch
+	processor that will generate an html pages with a graphic for
+	any number of input lists of genes.  See batchGOView.pl and
+	examples.html in the examples directory.
+
+	- GO::TermFinder
+
+	Fixed a nasty bug that was actually due to a bug in Perl (I
+	swear!) that meant that clients of the GO::TermFinder would
+	have a runtime error if they did not recognize one or more of
+	the genes that it was provided with.  This should no longer
+	happen, and I have written additional tests to make sure it
+	never happens again!
 
 0.40 Tue Dec  2 18:41:10 2003
 
