@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Id: analyze.pl,v 1.2 2003/10/17 01:58:32 sherlock Exp $
+# $Id: analyze.pl,v 1.3 2003/10/17 23:28:33 sherlock Exp $
 
 # Date   : 16th October 2003
 # Author : Gavin Sherlock

@@ -1,5 +1,14 @@
 Revision history for Perl extension GO-TermFinder.
 
+0.22 Sun Oct 19 16:54:38 2003
+
+	- GO::TermFinder
+
+	Fix for test that could occasionally fail that relied on
+        the sort order of the pValue array when two items had the
+        same pvalue.  It now sorts such cases explicitly by goid,
+        so the result should always be the same.
+
 0.21 Thu Oct 16 19:00:14 2003
 
 	- GO::TermFinder

@@ -4,7 +4,7 @@ package GO::TermFinder;
 # Author      : Gavin Sherlock
 # Date Begun  : December 31st 2002
 
-# $Id: TermFinder.pm,v 1.23 2003/10/17 15:57:14 sherlock Exp $
+# $Id: TermFinder.pm,v 1.25 2003/10/20 00:08:39 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -34,23 +34,28 @@ package GO::TermFinder;
 
 =head1 NAME
 
-GO::TermFinder
+GO::TermFinder - identify GO nodes that annotate a group of genes with a significant p-value
 
 =head1 Changes
 
-0.1  : Initial release
+    0.1  : Initial release
 
-0.2  : Added in code such that the client can determine which genes in
-       the provided to findTerms were annotated to the nodes that were
-       treated as hypotheses.
+    0.2  : Added in code such that the client can determine which genes
+           in the provided to findTerms were annotated to the nodes
+           that were treated as hypotheses.
 
-0.21 : Fix for situation when a gene identifier wasn't recognized,
-       but wasn't handled properly - thanks to Shuai Weng for bring
-       it to my attention.
+    0.21 : Fix for situation when a gene identifier wasn't recognized,
+           but wasn't handled properly - thanks to Shuai Weng for
+           bring it to my attention.
 
-       Cleaned up the code that calculates the p-values to make it
-       easier to write a test-suite, which will allow me to make other
-       desired changes with more confidence.
+           Cleaned up the code that calculates the p-values to make it
+           easier to write a test-suite, which will allow me to make
+           other desired changes with more confidence.
+
+    0.22 : Fix for test that could occasionally fail that relied on
+           the sort order of the pValue array when two items had the
+           same pvalue.  It now sorts such cases explicitly by goid,
+           so the result should always be the same.
 
 =head1 DESCRIPTION
 
@@ -73,13 +78,13 @@ the list of genes to be considered), the minimal set of nodes is
 determined from which all other hypotheses (nodes and annotations) can
 be inferred.  Their number is then used to multiply the calculated
 p-values, to generate corrected p-values.  The client has access to
-both the corrected an uncorrected values.  This is done instead of
+both the corrected and uncorrected values.  This is done instead of
 simple Bonferroni correction, because the hypotheses are not
 independent of one another.
 
 The general idea is that a list of genes may have been identified for
 some reason, e.g. they are coregulated, and TermFinder can be used to
-found out if any nodes annotate the set of genes to a level which is
+find out if any nodes annotate the set of genes to a level which is
 extremely improbable if the genes had simply been picked at random.
 
 =head1 TODO
@@ -119,7 +124,7 @@ use vars qw ($PACKAGE $VERSION);
 
 use GO::Node;
 
-$VERSION = '0.21';
+$VERSION = '0.22';
 $PACKAGE = 'GO::TermFinder';
 
 # class variables
@@ -362,7 +367,9 @@ sub findTerms{
 #                          that are annotated to the node, and whose values
 #                          are the original name supplied to the findTerms() method.
 #
-# The entries are sorted by increasing p-value (ie least likely is first).
+# The entries are sorted by increasing p-value (ie least likely is
+# first).  If there is a tie in the p-value, then the sort order is
+# determined by GOID, using a cmp comparison.
 #
 # It expects to be passed, by reference, a list of gene names for
 # which terms will be found.  If a passed in name is ambiguous (see
@@ -768,7 +775,11 @@ sub __calculatePValues{
 
     }
 
-    @pvalueArray = sort {$a->{PVALUE} <=> $b->{PVALUE}} @pvalueArray;
+    # now sort the pvalueArray by their pValues.  If the values are the same,
+    # then sort by goid (text based comparison).
+
+    @pvalueArray = sort {$a->{PVALUE}     <=> $b->{PVALUE} ||
+			 $a->{NODE}->goid cmp $b->{NODE}->goid } @pvalueArray;
 
     $self->{$kPvalues} = \@pvalueArray;
 
@@ -1374,7 +1385,8 @@ contents of the hashes in the returned array are:
                           supplied to the findTerms() method.
 
 The entries are sorted by increasing p-value (ie least likely is
-first).  
+first).  If there is a tie in the p-value, then the sort order is
+determined by GOID, using a cmp comparison.
 
 This method expects to be passed, by reference, a list of gene names
 for which terms will be found.  If a passed in name is ambiguous (see

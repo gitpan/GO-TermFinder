@@ -1,11 +1,11 @@
 use Test;
-BEGIN { plan tests => 27 };
+BEGIN { plan tests => 28 };
 
 # File       : GO-TermFinder.t
 # Author     : Gavin Sherlock
 # Date Begun : September 1st 2003
 
-# $Id: GO-TermFinder.t,v 1.1 2003/10/16 17:23:35 sherlock Exp $
+# $Id: GO-TermFinder.t,v 1.2 2003/10/20 00:08:12 sherlock Exp $
 
 # This file forms a set of tests for the GO::TermFinder class
 
@@ -68,25 +68,28 @@ my @pvalues = $termFinder->findTerms(genes=>[qw(YPL250C
 						MUP1
 						MET6)]);
 
-# the following are what should be the 10 most significant goids for
-# this set of genes using this frozen dataset
+# the following are what should be the 11 most significant goids for
+# this set of genes using this frozen dataset.  Note if two nodes
+# result in the same p-value, they will be sorted by GOID, using a
+# text sort.  There are two cases below where this happens.
 
 my @topGoids = ("GO:0006790",
 		"GO:0000096",
 		"GO:0006555",
 		"GO:0009066",
-		"GO:0000103",
+		"GO:0000103",  # this and GO:0006791 actually give the same p-value
 		"GO:0006791",
 		"GO:0006520",
 		"GO:0006519",
 		"GO:0009308",
+		"GO:0006082",  # this and GO:0019752 actually give the same p-value
 		"GO:0019752");
 
 # now check that these are returned by the TermFinder
 
 for (my $i = 0; $i< @topGoids; $i++){
 
-    ok($pvalues[$i]->{NODE}->goid, $topGoids[$i]);
+    ok($pvalues[$i]->{NODE}->goid, $topGoids[$i]);        
 
 }
 
