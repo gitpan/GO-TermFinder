@@ -25,6 +25,7 @@ lib/GO/OntologyProvider/OntologyParser.pm
 lib/GO/Reference.pm
 lib/GO/TermFinder.pm
 lib/GO/TermFinderReport/Html.pm
+lib/GO/TermFinderReport/Text.pm
 lib/GO/Utils/File.pm
 lib/GO/Utils/General.pm
 lib/GO/View.pm
@@ -36,5 +37,7 @@ t/GO-OntologyProvider-OntologyParser.t
 t/GO-TermFinder.t
 t/gene_association.sgd
 t/gene_association.test
+t/pod-coverage.t
+t/pod.t
 t/process.ontology
 test.pl

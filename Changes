@@ -1,5 +1,33 @@
 Revision history for GO-TermFinder group of modules.
 
+0.60 Wed May  5 15:04:06 2004
+
+	- GO::TermFinder
+
+	The multiple hypothesis correction is no longer done using the
+        custom method, but instead uses a Bonferroni correction.
+
+	Correcting p-values by running simulations is now available,
+	to allow you to control the Family Wise Error rate.
+
+	Added the ability to calculate the False Discovery Rate, as a
+    	potential means of avoiding the whole p-value problem.
+
+	see the pod for GO::TermFinder, as well as docs/GO-TermFinder.doc
+	for more information on these.
+
+	- tools
+
+	updated the batchGOView.pl tool, and the analyze.pl tool, in
+	the examples directory, to support printing out of the False
+	Discovery Rate if calculated.  They also both use the newly
+	created GO::TermFinderReport::Text object, to consolidate code, and
+	to keep their reports consistent with one another.
+
+	- README
+
+	Tried to make it a little clearer as to how to install the libraries.
+
 0.50 Tue Dec 16 17:34:50 2003
 
 	Big news is that a version of Shuai Weng's (from SGD) GO::View

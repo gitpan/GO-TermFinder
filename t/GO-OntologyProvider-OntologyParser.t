@@ -1,11 +1,11 @@
 use Test;
-BEGIN { plan tests => 17 };
+BEGIN { plan tests => 19 };
 
 # File       : GO-AnnotationProvider-AnnotationParser.t
 # Author     : Gavin Sherlock
 # Date Begun : March 9th 2002
 
-# $Id: GO-OntologyProvider-OntologyParser.t,v 1.1 2003/10/16 17:23:35 sherlock Exp $
+# $Id: GO-OntologyProvider-OntologyParser.t,v 1.2 2004/05/06 01:39:57 sherlock Exp $
 
 # This file forms a set of tests for the
 # GO::AnnotationProvider::AnnotationParser class
@@ -31,7 +31,7 @@ ok($ontology->isa("GO::OntologyProvider"));
 # check the object returns a code reference when asked if it can do a
 # method that should exist
 
-my @methods = qw (printOntology allNodes rootNode nodeFromId
+my @methods = qw (printOntology allNodes rootNode nodeFromId numNodes
 		  serializeToDisk);
 
 foreach my $method (@methods){
@@ -85,3 +85,20 @@ foreach my $node ($ontology->allNodes){
 }
 
 ok(scalar($ontology->allNodes), $validNodes);
+
+ok($ontology->numNodes, $validNodes);
+
+=head1 Modifications
+
+ List them here.
+
+ CVS information:
+
+ # $Author: sherlock $
+ # $Date: 2004/05/06 01:39:57 $
+ # $Log: GO-OntologyProvider-OntologyParser.t,v $
+ # Revision 1.2  2004/05/06 01:39:57  sherlock
+ # couple of extra tests, to check all nodes are valid.
+ #
+
+=cut

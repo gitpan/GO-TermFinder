@@ -1,9 +1,14 @@
-GO-TermFinder version 0.50
+GO-TermFinder version 0.60
 ==========================
 
 This set of modules can be have been developed under the auspices of
 the GMOD project (http://www.gmod.org/), which seeks to create
-software that may be generically useful for Model Organism Databases (MODs).
+software that may be generically useful for Model Organism Databases
+(MODs).
+
+The latest version of these modules should always be available from:
+
+http://search.cpan.org/dist/GO-TermFinder/
 
 WHAT DO THEY DO?
 
@@ -14,25 +19,39 @@ object allows a client program to provide a list of genes, from which
 it will determine p-values for the annotation associated with that
 list of genes.  It does this using the hypergeometric distribution.
 In addition, a corrected p_value is calculated, to correct for
-multiple hypothesis testing.  In addition, this distribution contains
-a version of Shuai Weng's GO::View module (and associated classes),
-such that you can graphically display the output of the
-GO::TermFinder.  Some simple clients of these modules are provided in
-the examples directory.
+multiple hypothesis testing.  This distribution also contains a
+version of Shuai Weng's GO::View module (and associated classes), such
+that you can graphically display the output of the GO::TermFinder.
+Some simple clients of these modules are provided in the examples
+directory.
 
 INSTALLATION
 
-To install this module type the following:
+Firstly, read all the installation instructions before you begin!
+
+To install this software, you will need some limited Unix experience,
+and some limited Perl experience.  If in doubt, consult your local
+Perl guru or systems administrator.  You also need access to a Unix
+machine, such as MacOSX, or a Windows machine running Cygwin, a Linux
+box, a Sun machine etc..
+
+To install the software do the following after downloading the
+distribution:
 
 First decompress the gzipped tarfile, e.g:
 
-   tar zxvf GO-TermFinder-0.5.tar.gz
+   tar zxvf GO-TermFinder-0.6.tar.gz
 
-Then cd into the created directory, e.g.:
+or:
 
-   cd GO-TermFinder-0.5
+   gunzip GO-TermFinder-0.6.tar.gz
+   tar xvf GO-TermFinder-0.6.tar
 
-Then actually install it:
+Then change into the created directory:
+
+   cd GO-TermFinder-0.6
+
+Then actually install it, using the following commands:
 
    perl Makefile.PL
    make
@@ -42,18 +61,24 @@ Then actually install it:
 The make install step will require, on most unix systems, that the
 command be run with root privileges, as by default it will install the
 libraries in a location (usually something like ${PERL5LIB}), which
-requires root privileges to write there.  If you want to install the
-libraries in an alternative place, such as your home directory, do:
+requires root privileges to write there.  In this case, you would use:
+
+   sudo make install
+
+after which it will prompt you for you sudo password (ask you sysadmin
+to do this if you don't have privileges).  If you want to install the
+libraries in an alternative place, such as your home directory, which
+won't require root privileges, do:
 
 perl Makefile.PL INSTALLDIRS=site INSTALLSITELIB=/home/your/private/dir
 
 as the first step of the installation, where /home/your/private/dir is
-obviously your target destination.  Note, for the example scripts to
-work you will have to add:
+your target destination.  Note, for the example scripts to work you
+will have to add:
 
 use lib "/home/your/private/dir"
 
-before the other use statements.  Also, during the 'make install'
+before the other 'use' statements.  Also, during the 'make install'
 stage, there will be some complaints about not be able to install man
 pages, but you can happily ignore these.
 
@@ -61,18 +86,42 @@ In the case that you get any failures during 'make test', please send
 me the full output of 'make test', and let me know what version or
 perl you are using, and on what platform you are running.
 
+Note, when the tests are running, it may say something like:
+
+t/GO-TermFinder.............................ok 1108/3236# Test 1112 got: '8' (t/GO-TermFinder.t at line 238 *TODO*)
+t/GO-TermFinder.............................ok 1111/3236#      Expected: '7' 
+t/GO-TermFinder.............................ok 1112/3236#  t/GO-TermFinder.t line 238 is: ok($hypothesis->{TOTAL_NUM_ANNOTATIONS},
+
+this is ok - it is not a failure - it is merely noting that there is a
+test marke as TODO, that currently gives the wrong answer.
+
+Also, if you have the Test::Pod::Coverage module installed, you will
+get some failures, as the GO::View(::*) modules are not fully
+documented - you can safely ignore these failures, and still go ahead
+with the install.  I hope to have full pod coverage of all the modules
+by the next release.
+
 DEPENDENCIES
 
 This module requires these other modules and libraries:
 
-	Storable - required for serializing objects to disk
-	GD	 - used for creating images in GO::View
-	GraphViz - used for graph layout in GO::View
+	Storable   - required for serializing objects to disk
+	GD	   - used for creating images in GO::View
+	GraphViz   - used for graph layout in GO::View
+	CGI        - used by the GO::TermFinderReport::Html object
+	Test::More - use for some of the tests
 
-Typically, Storable will be installed with Perl 5.6 and above.  If you
-need to find it and install it yourself, you can grab it from:
+Typically, Storable and CGI will be installed with Perl 5.6 and above.
+If you need to find it and install them yourself, you can grab them from:
 
 http://search.cpan.org/dist/Storable/
+
+http://search.cpan.org/dist/CGI.pm/
+
+Test::More is part of the Test-Simple distribution, and is available
+here:
+
+http://search.cpan.org/dist/Test-Simple/
 
 GD is available from:
 
@@ -82,18 +131,34 @@ Note that installation of the GD module itself has certain
 requirements that you must deal with to install it.  GO::View should
 be able to work with versions of GD that create png or gif images.
 
-GraphViz is available from:
+The Perl interface to GraphViz is available from:
 
 http://search.cpan.org/dist/GraphViz/
 
 Note that Graphviz also has some tricky requirements, in that you also
 need to install the C version of Graphviz, as noted in the README for
-GraphViz.  There are precompiled binaries available for most platforms from :
+the Perl version of GraphViz.  There are precompiled binaries
+available for most platforms from :
 
 http://www.research.att.com/sw/tools/graphviz/
 
-On MacOSX, the easiest way to install GraphViz is to use fink
-(http://fink.sourceforge.net/).
+On MacOSX, the easiest way to install the C version of GraphViz is to use fink
+(http://fink.sourceforge.net/), using the command:
+
+   fink install graphviz
+
+You will still need to install the Perl interface to GraphViz manually
+though.
+
+The Perl version of GraphViz requires the following modules be installed:
+
+IPC::Run	: http://search.cpan.org/dist/IPC-Run/
+Math::Bezier	: http://search.cpan.org/dist/Math-Bezier/
+Graph		: http://search.cpan.org/dist/Graph/
+
+and in turn Graph requires:
+
+Heap		: http://search.cpan.org/dist/Heap/
 
 If you do not want to use GO::View, and its client batchGOView.pl
 program, then you do not need either GD, or GraphViz.  In that case,
@@ -102,15 +167,15 @@ Makefile.PL, so that installation does not depend upon them.
 
 CONTACT INFO
 
-If you have any suggestions, bug fixes, etc, please post them to the
-gmod site at http://www.gmod.org/, or send email to
+If you have any suggestions, bug fixes, etc., please send email to
 sherlock@genome.stanford.edu.
 
 NOTE
 
 The ontology files in the t/ directory are solely for the purposes of
 running the test suite.  You should get the latest versions from the
-Gene Ontology website for your own analyses.
+Gene Ontology website (http://www.geneontology.org/) for your own
+analyses.
 
 COPYRIGHT AND LICENCE (the 'MIT license')
 

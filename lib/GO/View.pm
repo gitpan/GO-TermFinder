@@ -16,7 +16,7 @@ package GO::View;
 
 =head1 NAME
 
-GO::View
+GO::View - Creates a gif or png image for visualing the GO DAG
 
 
 =head1 DESCRIPTION
@@ -168,7 +168,7 @@ use GO::View::GD;
 use vars qw ($PACKAGE $VERSION);
 
 $PACKAGE = 'GO::View';
-$VERSION = 0.1;
+$VERSION = 0.11;
 
 my $kReplacementText = "<REPLACE_THIS>";
 

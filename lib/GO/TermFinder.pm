@@ -4,7 +4,7 @@ package GO::TermFinder;
 # Author      : Gavin Sherlock
 # Date Begun  : December 31st 2002
 
-# $Id: TermFinder.pm,v 1.32 2003/12/11 19:49:29 sherlock Exp $
+# $Id: TermFinder.pm,v 1.33 2004/05/05 22:35:45 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -40,26 +40,29 @@ GO::TermFinder - identify GO nodes that annotate a group of genes with a signifi
 
 This package is intended to provide a method whereby the P-values of a
 set of GO annotations can be determined for a set of genes, based on
-the number of genes that exist in the particular genome, and their
+the number of genes that exist in the particular genome (or in a
+selected background distribution from the genome), and their
 annotation, and the frequency with which the GO nodes are annotated
 across the provided set of genes.  The P-value is simply calculated
-using either the hypergeometric, or the binomial distribution, as the
-probability of x or more out of n genes having a given annotation,
-given that G of N have that annotation in the genome in general.  The
-hypergeometric distribution (sampling without replacement) is more
-accurate, though slower to calculate the the binomial distibution
-(sampling with replacement).
+using either the hypergeometric distribution (the binomial
+distribution is also provided as an option), as the probability of x
+or more out of n genes having a given annotation, given that G of N
+have that annotation in the genome in general.  The hypergeometric
+distribution (sampling without replacement) is more accurate, though
+slower to calculate than the binomial distibution (sampling with
+replacement).
 
-In addition, a corrected p-value is also calculated, to correct for
-multiple hypothesis testing.  From the sub-graph of GO nodes that are
-considered as hypotheses (any nodes with 2 or more annotations from
-the list of genes to be considered), the minimal set of nodes is
-determined from which all other hypotheses (nodes and annotations) can
-be inferred.  Their number is then used to multiply the calculated
-p-values, to generate corrected p-values.  The client has access to
-both the corrected and uncorrected values.  This is done instead of
-simple Bonferroni correction, because the hypotheses are not
-independent of one another.
+In addition, a corrected p-value can be calculated, to correct for
+multiple hypothesis testing.  The correction factor used is the total
+number of nodes to which the provided list of genes are annotated,
+excepting any nodes which have only a single annotation in the
+background, as a priori, we know that these cannot be significantly
+enriched.  The client has access to both the corrected and uncorrected
+values.  It is also possible to correct the p-value using 1000
+simulations, which control the Family Wise Error Rate - using this
+option suggests that the Bonferroni correction is in fact somewhat
+liberal, rather than conservative, as might be expected.  Finally, the
+False Discovery Rate can also be calculated.
 
 The general idea is that a list of genes may have been identified for
 some reason, e.g. they are coregulated, and TermFinder can be used to
@@ -68,34 +71,34 @@ extremely improbable if the genes had simply been picked at random.
 
 =head1 TODO
 
-On the day that I finished the code, BioPerl 1.2 was released, which
-appears to have some Ontology parsing code that is better than mine,
-which uses the Graph module on CPAN to implement the DAG structure of
-GO.  The Graph module provides a richer set of methods for querying
-the structure, though the BioPerl implementation does not appear to
-have all the things I want.  Anyway, converting my code to use the
-BioPerl Ontology stuff is probably a good goal, as the modules in
-their appear to have been somewhat better conceived in terms of their
-relationships to each other.  I did not notice anything to do with
-providing annotations, so my
-GO::AnnotationProvider::AnnotationParser may still be of use.  We
-will see....
+1.  May want the client to decide the behaviour for ambiguous names,
+    rather than having it hard coded (eg always ignore; use if
+    standard name (current implementation); use all databaseIds for
+    the ambiguous name; decide on a case by case basis (potentially
+    useful if running on command line)).
 
-May want the client to decide the behaviour for ambiguous names,
-rather than having it hard coded (eg always ignore; use if standard
-name (current implementation); use all databaseIds for the ambiguous
-name; decide on a case by case basis (potentially useful if running on
-command line)).
+2.  Would probably be a good idea to test using the Math::BigInt module to
+    deal with the factorials and nChooser calculations, so that they
+    are more accurate, rather than the log versions that I currently
+    have.  The latest version of Math::BigInt can have a C
+    implementation underneath, if used with the GMP library, that may
+    even speed it up a little.
 
-Would probably be a good idea to use the Math::BigInt module to deal
-with the factorials and nChooser calculations, so that they are more
-accurate, rather than the log versions that I currently have.  The
-latest version of Math::BigInt has a C implementation underneath, that
-may even speed it up a little.
+3.  Create new GO::Hypothesis and GO::HypothesisSet objects, so that
+    it is easier to access the information generated about the p-value
+    etc. of any particular GO node that annotates a set of genes.
 
-The multiple hypothesis correction (based on some simulations I've
-run) appears not to be conservative enough, and thus needs more
-work....
+4.  Instead of all the global variables, $k..., replace them with
+    constants, which may improve runtime, as the optimizer should
+    optimize the hash look ups to look like hard-coded strings at
+    runtime, rather than variable lookups.
+
+5.  Create a GO::Math class, to extract out all the statistics from
+    this module, so that only the logic of what math is needed to get
+    the p-values, rather than the implementations themselves are left.
+    This will decrease the complexity of this module considerably.
+
+6.  Lots of other stuff....
 
 =cut
 
@@ -107,7 +110,7 @@ use vars qw ($PACKAGE $VERSION $WARNINGS);
 
 use GO::Node;
 
-$VERSION = '0.31';
+$VERSION = '0.40';
 $PACKAGE = 'GO::TermFinder';
 
 $WARNINGS = 1; # toggle this to zero if you don't want warnings
@@ -123,13 +126,23 @@ my $kGOIDsForDatabaseIds     = $PACKAGE.'::__goidsForDatabaseIds';
 my $kDatabaseIds             = $PACKAGE.'::__databaseIds';
 my $kTotalNumAnnotatedGenes  = $PACKAGE.'::__totalNumAnnotatedGenes';
 my $kMethod                  = $PACKAGE.'::__method';
+my $kCorrectionMethod        = $PACKAGE.'::__correctionMethod';
+my $kShouldCalculateFDR      = $PACKAGE.'::__shouldCalculateFDR';
 my $kLogFactorials           = $PACKAGE.'::__logFactorials';
 my $kLogNCr                  = $PACKAGE.'::__logNCr';
 my $kPvalues                 = $PACKAGE.'::__pValues';
 my $kDatabaseId2OrigName     = $PACKAGE.'::__databaseId2OrigName';
 
+# the methods by which the p-value can be calculated
+
 my %kAllowedMethods = ('hypergeometric' => undef,
-		       'binomial'       => undef); # the methods by which the p-value can be calculated
+		       'binomial'       => undef);
+
+# the methods by which the p-value can be corrected
+
+my %kAllowedCorrectionMethods = ('bonferroni' => undef,
+				 'none'       => undef,
+				 'simulation' => undef);
 
 # set up a GO node that corresponds to anything passed in that has no
 # annotation
@@ -142,64 +155,75 @@ my $kFakeIdPrefix    = "NO_DETERMINED_DATABASE_ID_";
 #####################################################################
 sub new{
 #####################################################################
-# This is the constructor.  It expects to be passed named arguments
-# for an annotationProvider, an ontologyProvider.  In addition, it
-# must be told the aspect of the ontology provider, so that it knows
-# how to query the annotationProvider.
-#
-# There are also some additional, optional arguments:
-#
-# population: this argument allows a client to indicate the population
-# that should used to calculate a background distribution of GO terms.
-# In the absence of population argument, then the background
-# distribution will be drawn from all genes in the annotationProvider.
-# This should be provided as an array reference, and no ambiguous
-# names should be provided (see AnnotationProvider for details of name
-# ambiguity).  This option is particularly pertinent in the case that
-# e.g. you assayed 2000 genes in a two hybrid, and found 20
-# interesting ones.  To find significant terms, you need to do it in
-# he context of the genes that you assayed, not in the context of all
-# genes with annotation.
-#
-# totalNumGenes: this argument allows a client to indicate that the size
-# of the background distribution is in fact larger that the number of genes
-# that exist in the annotation provider, and the extra genes are merely
-# assumed to be entirely unannotated.
-#
-# Thus - if using 'population', the total number of genes considered
-# as the background will be the number of genes in the provided
-# population.  If not using 'population', then the number of genes
-# that will be considered as the total population will be the number
-# of genes in the annotationProvider.  However, if the totalNumGenes
-# argument is provided, then that number will be used as the size of
-# the population.  If it is not larger than the total number of genes
-# in the annotationParser, then the number of genes in the
-# annotationParser will be used.  The totalNumGenes and the population
-# arguments are mutually exclusive, and both should not be provided at
-# the same time.
-#
-# Usage (population is larger than those with annotations):
-#
-#    my $termFinder = GO::TermFinder->new(annotationProvider=> $annotationProvider,
-#                                         ontologyProvider  => $ontologyProvider,
-#                                         totalNumGenes     => $num,
-#                                         aspect            => <P|C|F>);
-#
-#
-# Usage (use all annotated genes as population):
-#
-#    my $termFinder = GO::TermFinder->new(annotationProvider=> $annotationProvider,
-#                                         ontologyProvider  => $ontologyProvider,
-#                                         aspect            => <P|C|F>);
-#
-#
-# Usage (use a subset of genes as the background population):
-#
-#    my $termFinder = GO::TermFinder->new(annotationProvider=> $annotationProvider,
-#                                         ontologyProvider  => $ontologyProvider,
-#                                         population        => \@genes,
-#                                         aspect            => <P|C|F>);
-#
+=pod
+
+=head1 Instance Constructor
+
+=head2 new
+
+This is the constructor.  It expects to be passed named arguments for
+an annotationProvider, and an ontologyProvider.  In addition, it must
+be told the aspect of the ontology provider, so that it knows how to
+query the annotationProvider.
+
+There are also some additional, optional arguments:
+
+population:
+
+This argument allows a client to indicate the population that should
+used to calculate a background distribution of GO terms.  In the
+absence of population argument, then the background distribution will
+be drawn from all genes in the annotationProvider.  This should be
+provided as an array reference, and no ambiguous names should be
+provided (see AnnotationProvider for details of name ambiguity).  This
+option is particularly pertinent in a case where for example you
+assayed only 2000 genes in a two hybrid experiment, and found 20
+interesting ones.  To find significant terms, you need to do it in the
+context of the genes that you assayed, not in the context of all genes
+with annotation.
+
+totalNumGenes:
+
+This argument allows a client to indicate that the size of the
+background distribution is in fact larger that the number of genes
+that exist in the annotation provider, and the extra genes are merely
+assumed to be entirely unannotated.
+
+NB: This is an API change, as totalNumGenes was previously required.
+
+Thus - if using 'population', the total number of genes considered as
+the background will be the number of genes in the provided population.
+If not using 'population', then the number of genes that will be
+considered as the total population will be the number of genes in the
+annotationProvider.  However, if the totalNumGenes argument is
+provided, then that number will be used as the size of the population.
+If it is not larger than the total number of genes in the
+annotationParser, then the number of genes in the annotationParser
+will be used.  The totalNumGenes and the population arguments are
+mutually exclusive, and both should not be provided at the same time.
+
+Usage ($num is larger than the number of genes with annotations):
+
+   my $termFinder = GO::TermFinder->new(annotationProvider=> $annotationProvider,
+                                        ontologyProvider  => $ontologyProvider,
+                                        totalNumGenes     => $num,
+                                        aspect            => <P|C|F>);
+
+
+Usage (use all annotated genes as population):
+
+   my $termFinder = GO::TermFinder->new(annotationProvider=> $annotationProvider,
+                                        ontologyProvider  => $ontologyProvider,
+                                        aspect            => <P|C|F>);
+
+Usage (use a subset of genes as the background population):
+
+   my $termFinder = GO::TermFinder->new(annotationProvider=> $annotationProvider,
+                                        ontologyProvider  => $ontologyProvider,
+                                        population        => \@genes,
+                                        aspect            => <P|C|F>);
+
+=cut
 
 
     my ($class, %args) = @_;
@@ -319,7 +343,12 @@ sub __init{
 
     }
 
+    # now determine the level of annotation for each GO node in the
+    # population of genes to be used as the background distribution
+
     my $totalNodeCounts = $self->__buildHashRefOfAnnotations(\@databaseIds);
+
+    # adjust those counts if needs be
 
     if ($populationSize < $self->__totalNumGenes){
 
@@ -345,6 +374,8 @@ sub __init{
 	$totalNodeCounts->{$kUnannotatedNode->goid} += ($self->__totalNumGenes - $populationSize);
 
     }
+
+    # and now store the information
 
     $self->{$kTotalGoNodeCounts}      = $totalNodeCounts;
     $self->{$kTotalNumAnnotatedGenes} = $populationSize;
@@ -392,111 +423,208 @@ sub __cacheLogFactorials{
 }
 
 
+=pod
 
-#
-# PUBLIC INSTANCE METHODS
-#
+=head1 Instance Methods
+
+=cut
 
 #####################################################################
 sub findTerms{
 #####################################################################
-# This method returns an array of hash references that indicates what
-# terms can annotate the list of genes with what p-value.  The p-value
-# is calculated using the hypergeometric distribution (which uses
-# sampling without replacement) by default, as the probability of
-# seeing that level of annotation to a node or better.  the 'method'
-# argument may be used with a value of 'binomial' to use the binomial
-# distribution instead, which used sampling with replacement.  This is
-# less accurate than the hypergeometric distribution, though for very
-# large total numbers in the genome, the differences will be small.
-# This option is provided because the binomial distribution is qicker
-# to calculate.  
-#
-# The contents of the hashes in the returned array are:
-#
-#    key                   value
-#    -------------------------------------------------------------------------
-#    NODE                  A GO::Node
-#
-#    PVALUE	           The P-value for having the observed number of
-#                          annotations that the provided list of genes
-#                          has to that node
-#
-#    CORRECTED_PVALUE      The CORRECTED_PVALUE is the PVALUE multiplied
-#                          by the number of nodes in the minimal set
-#                          of hypotheses from which all other
-#                          hypotheses can be generated.  A hypothesis
-#                          is any node to which 2 or more genes in the
-#                          supplied list are annotated, either
-#                          directly or indirectly.  The minimal subset
-#                          of hypotheses from which all others can be
-#                          constructed consists of the union of the
-#                          following classes of node: 
-#
-#                           1).  Leaf hypotheses (i.e. hypotheses which 
-#                                have no children that were tested as hypotheses).
-#
-#                           2).  Hypotheses that have at least one non-hypothesis 
-#                                child with an annotation.
-#      
-#                           3).  Hypotheses with direct annotation.
-#
-#    NUM_ANNOTATIONS       The number of genes within the provided list that
-#                          are annotated to the node.
-#
-#    TOTAL_NUM_ANNOTATIONS The number of genes across the genome
-#                          annotated to the node
-#
-#    ANNOTATED_GENES       A hash reference, whose keys are the databaseIds 
-#                          that are annotated to the node, and whose values
-#                          are the original name supplied to the findTerms() method.
-#
-# The entries are sorted by increasing p-value (ie least likely is
-# first).  If there is a tie in the p-value, then the sort order is
-# determined by GOID, using a cmp comparison.
-#
-# It expects to be passed, by reference, a list of gene names for
-# which terms will be found.  If a passed in name is ambiguous (see
-# documentation for AnnotationProvider), then the following will
-# occur:
-#
-# 1) If the name can be used as a standard name, it will
-#    assume that it is that.
-#
-# 2) Otherwise it will not use it.
-#
-# If a gene name is not recognized at all, then it will simply be
-# ignored, and thus the list will be smaller - I am not yet convinced
-# this is the best policy.....
-#
-# Usage:
-#
-#    my @pvalueStructures = $termFinder->findTerms(genes=>\@genes);
-#
-#    my $hypothesis = 1;
-#
-#    foreach my $pvalue (@pvalueStructures){
-#
-#    print "-- $hypothesis of ", scalar @pvalueStructures, "--\n",
-#
-#	"GOID\t", $pvalue->{NODE}->goid, "\n",
-#
-#	"TERM\t", $pvalue->{NODE}->term, "\n",
-#
-#	"P-VALUE\t", $pvalue->{PVALUE}, "\n",
-#
-#	"CORRECTED P-VALUE\t", $pvalue->{CORRECTED_PVALUE}, "\n",
-#	
-#       "NUM_ANNOTATIONS\t", $pvalue->{NUM_ANNOTATIONS}, " (of ", $pvalue->{TOTAL_NUM_ANNOTATIONS}, ")\n",
-#
-#       "ANNOTATED_GENES\t", join(", ", values (%{$pvalue->{ANNOTATED_GENES}})), "\n\n";
-#
-#       $hypothesis++;
-#
-#    }
-#
+=pod
+
+=head2 findTerms
+
+This method returns an array of hash references, one for each GO::Node
+that was tested as a hypothesis, that indicates which terms annotate
+the list of genes with what P-values.  The contents of the hashes in
+the returned array depend on some of the run time options.  They are:
+
+    key                   value
+    -------------------------------------------------------------------------
+
+Always Present:
+
+    NODE                  A GO::Node
+
+    PVALUE		  The P-value for having the observed number of
+                          annotations that the provided list of genes
+                          has to that node
+
+    NUM_ANNOTATIONS       The number of genes within the provided list that
+                          are annotated to the node.
+
+    TOTAL_NUM_ANNOTATIONS The number of genes across the genome
+                          annotated to the node
+
+    ANNOTATED_GENES       A hash reference, whose keys are the
+                          databaseIds that are annotated to the node,
+                          and whose values are the original name
+                          supplied to the findTerms() method.
+
+Present if corrected p-values are calculated:
+
+    CORRECTED_PVALUE      The CORRECTED_PVALUE is the PVALUE, but corrected
+                          for multiple hypothesis testing, due to the
+                          fact that you are more likely to generate
+                          significant looking p-values if you test a
+                          lot of hypotheses.  See below for details of
+                          how this pvalue is calculated, and the
+                          options associated with it.
+
+Present if p-values were corrected by simulation:
+
+    NUM_OBSERVATIONS      The number of simulations in which a p-value as
+                          good as this one, or better, was observed.
+
+Present if the False Discovery Rate is calculated:
+
+    FDR_RATE              The False Discovery Rate - this is a fraction 
+                          of how many of the nodes with p-values as good or 
+			  better than the node with this FDR would be expected 
+			  to be false positives.
+
+    FDR_OBSERVATIONS      The average number of nodes during simulations 
+                          that had an uncorrected p-value as good or better
+			  than the p-value of this node.
+
+    EXPECTED_FALSE_POSITIVES The expected number of false positives if this node
+                             is chosen as the cut-off.
+
+The entries in the returned array are sorted by increasing p-value
+(i.e. least likely is first).  If there is a tie in the p-value, then
+the sort order is determined by GOID, using a cmp comparison.
+
+findTerm() expects to be passed, by reference, a list of gene names
+for which terms will be found.  If a passed in name is ambiguous (see
+AnnotationProvider), then the following will occur:
+
+    1) If the name can be used as a standard name, it will assume that
+       it is that.
+
+    2) Otherwise it will not use it.
+
+Currently a warning will be printed to STDOUT in the case of an
+ambiguous name being used.
+
+The passed in gene names are converted into a list of databaseIds.  If
+a gene does not map to a databaseId, then an undef is put in the list
+- however, if the same gene name, which does not map to a databaseId,
+is used twice then it will produce only one undef in the list.  If
+more than one gene name maps to the same databaseId (either because
+you used the same name twice, or you used an alias as well), then that
+databaseId is only put into the list once, and a warning is printed.
+
+If a gene name does not have any information returned from the
+AnnotationProvider, then it is assumed that the gene is entirely
+unannotated.  For these purposes, TermFinder annotates such genes to
+the root node (Gene_Ontology), its immediate child (which indicates
+the aspect of the ontology (such as biological_process), and a dummy
+go node, corresponding to unannotated.  This node will have a goid of
+'GO:XXXXXXX', and a term name of 'unannotated'.  No other information
+will be set up for this GO::Node, so you should not count on being
+able to retrieve it.  What it does mean is that you can determine if
+the predominant feature of a set of genes is that they have no
+annotation.
+
+If more genes are provided that have been indicated exist in the
+genome (as provided during object construction), then an error message
+will be printed out, and an empty list will be returned.
+
+In addition, it is possible that for a small list of genes, that no
+hypotheses will be tested - in this case, those genes will only have
+annotated nodes with a count of 1, other than the Gene_Ontology node
+itself, and the node corresponding to the aspect of the ontology.
+Neither of these are considered for p-value testing, as a priori they
+must have a p-value of 1.
+
+MULTIPLE HYPOTHESIS CORRECTION
+
+An optional argument, 'correction' may be used, which indicates what
+method of multiple hypothesis correction should be used.  Multiple
+hypothesis correction attempts to keep the overall chance of getting
+any false positives at the same level (e.g. 0.05).  Acceptable values
+are:
+
+bonferroni, none, simulation
+
+ : 'bonferroni' will correct the p-values by using as the correction
+    factor the total number of nodes to which the provided list of
+    genes are annotated, either directly or indirectly, excepting any
+    nodes that are annotated only once in the background distribution,
+    as, a priori, these cannot be overrepresented.
+
+ : 'none' will perform no multiple hypothesis correction
+
+ : 'simulation' will run 1000 simulations with random lists of genes
+   (the same size as the originally provided gene list), and determine
+   a corrected value by how many simulations produced a p-value better
+   than the p-value associated with one of the real hypotheses.
+   E.g. if a node from the real data has a p-value of 0.05, but a
+   p-value that good or better is generated in 500 out of 1000 trials,
+   the corrected pvalue will be 0.5.  In the case that a p-value
+   generated from a real list of genes is never seen in the
+   simulations, it will be given a corrected p-value of < 0.001, and
+   the NUM_OBSERVATIONS attribute of the hypothesis will be 0.  Using
+   this option takes 1000 time as long!
+
+The default for this argument, if not provided, is bonferroni.
+
+FALSE DISCOVERY RATE
+
+As a way of pre-empting the potential problems of using p-values
+corrected for multiple hypothesis testing, the False Discovery Rate
+can instead be calculated, and you can instead set your cutoff based
+on an acceptable false discovery rate, such as 0.01 (1%), or 0.05 (5%) etc.  Thus,
+the optional argument 'calculateFDR' can be used.  A non-zero value
+means that the False Discovery Rate will be calculated for each node,
+such that you can determine, if you chose your p-value cut-off at that
+node, what the FDR would be.  The FDR is calculated by running 50
+simulations, and counting the average number of times a p-value as
+good or better that a p-value generated from the real data is seen.
+This is used as the numerator.  The denominator is the number of
+p-values in the real data that are as good or better than it.
+
+Usage example - in this example, the default (Bonferroni) correction
+is used to calculate a corrected p-value, and in addition, the False
+Discovery Rate is also calculated:
+
+    my @pvalueStructures = $termFinder->findTerms(genes        => \@genes,
+                                                  calculateFDR => 1);
+
+    my $hypothesis = 1;						    
+
+    foreach my $pvalue (@pvalueStructures){
+
+    print "-- $hypothesis of ", scalar @pvalueStructures, "--\n",
+
+	"GOID\t", $pvalue->{NODE}->goid, "\n",
+
+	"TERM\t", $pvalue->{NODE}->term, "\n",
+
+	"P-VALUE\t", $pvalue->{PVALUE}, "\n",
+
+	"CORRECTED P-VALUE\t", $pvalue->{CORRECTED_PVALUE}, "\n",
+
+        "FALSE DISCOVERY RATE\t", $pvalue->{FDR_RATE}, "\n",
+	
+        "NUM_ANNOTATIONS\t", $pvalue->{NUM_ANNOTATIONS}, " (of ", $pvalue->{TOTAL_NUM_ANNOTATIONS}, ")\n",
+
+        "ANNOTATED_GENES\t", join(", ", values (%{$pvalue->{ANNOTATED_GENES}})), "\n\n";
+
+        $hypothesis++;
+
+    }
+
+=cut
+
 
     my ($self, %args) = @_;
+
+    # let's check that they have provided the required information
+
+    # check they gave us a list of genes
 
     if (!exists ($args{'genes'})){
 
@@ -508,11 +636,41 @@ sub findTerms{
 
     }
 
+    # see if they gave us an allowable method by which to calculate
+    # the p-value
+
     $self->{$kMethod} = $args{'method'} || 'hypergeometric';
 
-    if (!exists $kAllowedMethods{$self->{$kMethod}}){
+    if (!exists $kAllowedMethods{$self->__method}){
 
-	die "$self->{$kMethod} is not an allowed method.  Use one of :". join(", ", keys %kAllowedMethods);
+	die $self->__method." is not an allowed method.  Use one of :". join(", ", keys %kAllowedMethods);
+
+    }
+
+    # see if they gave us an allowable method by which to correct for
+    # multiple hypotheses
+
+    $self->{$kCorrectionMethod} = $args{'correction'} || 'bonferroni';
+
+    if (!exists $kAllowedCorrectionMethods{$self->__correctionMethod}){
+
+	die $self->__correctionMethod." is not an allowed correction method.  Use one of :". 
+
+	    join(", ", keys %kAllowedCorrectionMethods);
+
+    }
+
+    # store whether to calculate the FDR
+
+    if (exists $args{'calculateFDR'} && $args{'calculateFDR'} != 0){
+
+	$self->{$kShouldCalculateFDR} = 1;
+
+    }else{
+
+	# default is not to calculate it
+	
+	$self->{$kShouldCalculateFDR} = 0;
 
     }
 
@@ -548,19 +706,32 @@ sub findTerms{
 
     }
 
+    # now we determine all the count for direct and indirect
+    # annotations for the provided list of genes.
+
     $self->{$kGoCounts} = $self->__buildHashRefOfAnnotations([$self->__databaseIds]);
 
+    # now we have these counts, and because we determined the counts
+    # of the background distribution during object construction, we
+    # can determine the p-values for the annotations of our list of
+    # genes of interest.
+
     $self->__calculatePValues;
-
-    # now what we want to do is calculate pvalues that are corrected for
-    # multiple hypothesis testing
-
-    $self->__correctPvalues;
 
     # now we want to add in which genes were annotated to each node
     # so that the client can determine them
 
     $self->__addAnnotationsToPValues;
+
+    # now what we want to do is calculate pvalues that are corrected
+    # for multiple hypothesis testing, unless it is specifically
+    # requested not to.
+
+    $self->__correctPvalues unless ($self->__correctionMethod eq 'none');    
+
+    # now calculate the False Discovery Rate, if requested to
+
+    $self->__calculateFDR if ($self->__shouldCalculateFDR);
 
     return $self->__pValues;
 
@@ -602,6 +773,30 @@ sub __totalNumAnnotatedGenes{
 }
 
 #####################################################################
+sub __numAnnotatedNodesInBackground{
+#####################################################################
+# This private method returns the number of nodes in the ontology that
+# have any annotation in the background distribution.  This is stored
+# during object initialization as a hash of GOID to the number of
+# counts.
+
+    return scalar keys %{$_[0]->{$kTotalGoNodeCounts}};
+
+}
+
+#####################################################################
+sub __allGoIdsForBackground{
+#####################################################################
+# This private method returns as an array all the GOIDs of nodes in
+# the ontology that have any annotation in the background
+# distribution.  This is stored during object initialization as a hash
+# of GOID to the number of counts.
+
+    return keys %{$_[0]->{$kTotalGoNodeCounts}};
+
+}
+
+#####################################################################
 sub __databaseIds{
 #####################################################################
 # This method returns an array of databaseIds corresponding to the
@@ -637,6 +832,27 @@ sub __method{
 # have their p-values calculated - either binomial or hypergeometric.
 
     return $_[0]->{$kMethod};
+
+}
+
+#####################################################################
+sub __correctionMethod{
+#####################################################################
+# This method returns the name of the method by which the client has
+# chosen to have their p-values corrected - either none, bonferroni,
+# custom, or simulation.
+
+    return $_[0]->{$kCorrectionMethod};
+
+}
+
+#####################################################################
+sub __shouldCalculateFDR{
+#####################################################################
+# This method returns a boolean, to indicate whether the false discovery
+# rate should be calculated
+
+    return $_[0]->{$kShouldCalculateFDR};
 
 }
 
@@ -858,7 +1074,7 @@ sub __allGOIDsForDatabaseId{
 
 	    # just in case an annotation is to a goid not present in the ontology
 
-	    if (!$self->__ontologyProvider->nodeFromId($goid)){ # 
+	    if (!$self->__ontologyProvider->nodeFromId($goid)){
 
 		if ($WARNINGS){
 
@@ -904,7 +1120,7 @@ sub __calculatePValues{
 
     my $self = shift;
 
-    my $numDatabaseIds    = scalar $self->__databaseIds;
+    my $numDatabaseIds = scalar $self->__databaseIds;
 
     my @pvalueArray;
     
@@ -922,6 +1138,14 @@ sub __calculatePValues{
 	# the ontology, as it also has a probability of 1
 
 	next if ($goid eq ($self->__ontologyProvider->rootNode->childNodes())[0]->goid);	
+
+	# skip any that has only one annotation in the background
+	# distribution, as by definition these cannot be
+	# overrepresented
+
+	next if ($self->__totalNumAnnotationsToGoId($goid) == 1);
+
+	# if we get here, we should calculate the a p-value for this node
 
 	push (@pvalueArray, $self->__processOneGOID($goid, $numDatabaseIds));
 
@@ -1163,8 +1387,9 @@ sub __pValueByHypergeometric{
 ############################################################################
 sub __pValueByBinomial{
 ############################################################################
-# This method calculate the pvalue of of observing x or more positives from
-# a sample of n, given that there are M positives in a population of N
+# This method calculate the pvalue of of observing x or more positives
+# from a sample of n, given that there are M positives in a population
+# of N
 
     my ($self, $x, $n, $M, $N) = @_;
 
@@ -1197,51 +1422,73 @@ sub __allGoIdsForList{
 ############################################################################
 sub __correctPvalues{
 ############################################################################
-# This method corrects the pvalues for multiple hypothesis testing.
-# Because each hypothesis (a GO node) is not an independent
-# hypothesis, then full correction (multiplying by the number of nodes
-# (hypotheses) considered) is not appropriate.  Instead, correction is
-# done by multiplying each pvalue by the number of nodes in the
-# minimal subset from which all hypotheses can be reconstructed.  This
-# is the number of nodes whose level of annotatation cannot be solely
-# reconstructed from child nodes that were hypotheses themselves.
-# This corresponds to the union of the following three classes of
-# node:
-#
-# 1).  Leaf hypotheses (i.e. hypotheses which have no children that
-#      were tested as hypotheses).
-#
-# 2).  Hypotheses that have at least one non-hypothesis child with an
-#      annotation.
-#      
-# 3).  Hypotheses with direct annotation.
+# This method corrects the pvalues for multiple hypothesis testing, by
+# dispatching to the appropriate method based on what method was
+# requested for hypothesis correction.
 
-    my ($self) = @_;
+    my $self = shift;
 
-    my @leafHypotheses = $self->__leafHypotheses;
+    my $correctionMethod = "__correctPvaluesBy".$self->__correctionMethod;
 
-    my @hypothesesWithNonHypothesisAnnotatedChildren = $self->__hypothesesWithNonHypothesisAnnotatedChildren;
+    $self->$correctionMethod;
 
-    my @directlyAnnotatedHypotheses = $self->__directlyAnnotatedHypotheses;
+}
 
-    # now determine the number of unique hypotheses that are needed to
-    # reconstruct all hypotheses
+#####################################################################
+sub __correctPvaluesBybonferroni{
+#####################################################################
+# This method corrects the p-values using a Bonferroni correction,
+# where the correction factor is the total number of nodes to which
+# the foreground is annotated (i.e. the provided list of genes),
+# except those that are annotated as singletons in the background
+# population, which, a priori, we know cannot be logically
+# over-represented.
 
-    my %goids;
+    my $self = shift;
 
-    foreach my $goid (@leafHypotheses, @hypothesesWithNonHypothesisAnnotatedChildren, @directlyAnnotatedHypotheses){
-	
-	$goids{$goid} = undef;
-	
+    my $correctionFactor = 0;
+
+    # go through each node annotated by the list of genes
+
+    foreach my $goid ($self->__allGoIdsForList){
+
+	# and increment the correction factor if that node has more
+	# than 1 annotation in the background
+
+	$correctionFactor++ if ($self->__totalNumAnnotationsToGoId($goid) > 1);
+
     }
 
-    my $minimalNumberOfHypotheses = scalar keys %goids;
+    # now correct the pvalues with the correction factor
 
-    # now correct pvalues, by multiplying by $minimalNumberOfHypotheses
-    
+    $self->__adjustPvaluesByCorrectionFactor($correctionFactor);
+
+}
+
+############################################################################
+sub __adjustPvaluesByCorrectionFactor{
+############################################################################
+# This method simply takes a single correction factor, and generates a
+# corrected pvalue from the uncorrected version, by multiplying the
+# two together.
+
+    my ($self, $correctionFactor) = @_;
+
+    # the correction factor should never be less than 1
+
+    if ($correctionFactor < 1){
+
+	die "The supplied correction factor ($correctionFactor) cannot be less than 1.";
+
+    }
+
+    # simply go through each hypothesis and calculate the corrected
+    # p-value by multiplying the uncorrected p-value by the number of
+    # nodes in the ontology
+
     foreach my $hypothesis ($self->__pValues){
 
-	$hypothesis->{CORRECTED_PVALUE} = $hypothesis->{PVALUE} * $minimalNumberOfHypotheses;
+	$hypothesis->{CORRECTED_PVALUE} = $hypothesis->{PVALUE} * $correctionFactor;
 
 	# make sure we have a ceiling of 1
 
@@ -1252,145 +1499,441 @@ sub __correctPvalues{
 }
 
 ############################################################################
-sub __leafHypotheses{
+sub __correctPvaluesBysimulation{
 ############################################################################
-# This method returns the goids of hypothesis nodes that don't
-# have children that were hypothesis nodes.  For each hypothesis node
-# we just have to check that none of its children had two or more
-# annotations, as that was the requirement to be considered as
-# hypothesis.
+# This method corrects the P-values based on a thousand random trials,
+# using the same number of genes for each trial as was used in the
+# client query.  A p-value will be corrected based on the number of
+# simulations in which that p-value was seen, e.g. if an uncorrected
+# p-value of 0.05 or better was observed in 100 of 1000 trials, the
+# corrected value will be 0.1 (100/1000).
 
-    my ($self) = @_;
+    my $self = shift;
 
-    my @leafHypotheses;
+    # when we run any simulation, any of the variables that get
+    # modified during the findTerms method will be trampled on - thus
+    # we have to save them away, and then restore them afterwards
 
-  PARENT:
+    my $variables = $self->__saveVariables();
 
-    foreach my $hypothesis ($self->__pValues){
-	
-	# now go through each child of this goid, and see if it had 2
-	# or more annotations
-	
-	foreach my $childNode ($hypothesis->{NODE}->childNodes){
-	    
-	    # if any of the children have more than one annotation, we skip
-	    # this parent entirely
+    # we will need access to the real hypotheses - we'll reverse them
+    # for now, as it makes them easier when we use them later on
 
-	    next PARENT if (defined($self->__numAnnotationsToGoId($childNode->goid)) &&
+    my @realHypotheses = reverse @{$self->{$kPvalues}};
 
-			    $self->__numAnnotationsToGoId($childNode->goid) > 1);
+    # now let's get the population from which we will sample genes
+    # randomly
+
+    my @names = $self->__samplingPopulation;
+
+    my $populationSize = scalar @names;
+
+    # now get the number of genes in the original test set
+    # for which terms were found.
+    
+    my $numGenes = scalar $self->__databaseIds;
+
+    # now we can finally run the simulations
+
+    my $numSimulations = 1000;
+
+    for (my $i = 1; $i <= $numSimulations; $i++) {
+
+	# run simulation
+
+	my @pvals = $self->__runOneSimulation(\@names, $numGenes, $populationSize);
+
+	# go onto a new simulation if no hypothese resulted (which is
+	# possible if the randomly selected genes did not have more
+	# than one annotation to any particular GO node)
+
+	next if !@pvals;
+
+	# now we look at the best pvalue for the random genes, and
+	# determine whether it is more significant that any of the
+	# p-values generated for the real genes.  We will keep a count
+	# of how many times we see a p-value that is better than one
+	# calculated with the real genes, on a per simulation basis
+
+	# if we go through the p-values for the real nodes in reverse
+	# order (we reversed them above), then we can quit out of the
+	# loop as soon as we have a p-value better than the best one
+	# generated from the random genes
+
+	foreach my $realHypothesis (@realHypotheses){
+
+	    # skip examining, if the real pvalue is better than the
+	    # best one for the random genes
+
+	    last if ($pvals[0]->{PVALUE} > $realHypothesis->{PVALUE});
+
+	    # if we get here, we know that this simulation has generated
+	    # a P_VALUE that is better than the P_VALUE for the currently
+	    # considered hypothesis.  We'll simply keep count for now
+
+	    $realHypothesis->{NUM_OBSERVATIONS}++;
 
 	}
 
-	# if we get here, either the considered node had no children,
-	# or none of its children were hypotheses (had 2 or more annotations from our list)
+    }
 
-	push (@leafHypotheses, $hypothesis->{NODE}->goid);
+    # now we've run all the simulations, we should be able to simply divide
+    # the observed frequency by the number of simulations.
+
+    foreach my $realHypothesis (@realHypotheses){
+
+	if (exists $realHypothesis->{NUM_OBSERVATIONS}){
+
+	    $realHypothesis->{CORRECTED_PVALUE} = $realHypothesis->{NUM_OBSERVATIONS}/$numSimulations;
+
+	}else{
+
+	    # a pvalue better than this wasn't observed in any
+	    # simulation - just record the minimum
+
+	    $realHypothesis->{CORRECTED_PVALUE} = 1/$numSimulations;
+
+	    # and say that we never saw it
+
+	    $realHypothesis->{NUM_OBSERVATIONS} = 0;
+
+	}
 
     }
 
-    return @leafHypotheses;
+    @realHypotheses = reverse @realHypotheses;
+
+    # now restore the variables
+
+    $self->__restoreVariables($variables);
+
+    # finally replace the hypotheses with our local copy, which we've
+    # made some modifications to
+
+    $self->{$kPvalues} = \@realHypotheses;
 
 }
 
 ############################################################################
-sub __hypothesesWithNonHypothesisAnnotatedChildren{
+sub __saveVariables{
 ############################################################################
-# This method returns an array of goids that correspond to hypotheses that
-# were tested, that have child nodes with annotation that were not tested
-# as hypotheses.  Such children would only have a single annotation.
+# This private method returns a hash containing various of the
+# instance variables that might get trampled on during a simulation
 
     my ($self) = @_;
 
-    my @hypotheses;
+    my %variables;
 
-    foreach my $hypothesis ($self->__pValues){
+    my @keys = ($kMethod, $kCorrectionMethod, $kShouldCalculateFDR,
+		$kDatabaseIds, $kDatabaseId2OrigName, $kGoCounts,
+		$kPvalues);
+
+    foreach my $key (@keys){
+
+	$variables{$key} = $self->{$key};
+
+    }
+
+    return \%variables;
+
+}
+
+############################################################################
+sub __restoreVariables{
+############################################################################
+# This private method uses a passed in hash (by reference) to restore
+# variables within the instance
+
+    my ($self, $hashRef) = @_;
+
+    foreach my $key (%{$hashRef}){
+
+	$self->{$key} = $hashRef->{$key};
+
+    }
+
+}
+
+############################################################################
+sub __samplingPopulation{
+############################################################################
+# This private method returns an array of id's that should be used as
+# the sampling population for the simulation
+
+    my $self = shift;
+
+    # we will need to pick genes randomly from the background
+    # population.  Note that population may be larger than the
+    # databaseIds that are referenced in the annotations file - if so,
+    # we have to be able to randonly select unannotated genes too
+
+    # alternatively, the user may have specified a population of genes
+    # that define the background - in which case we should pick only
+    # from that population
+
+    my @names;
+
+    if ($self->__isUsingPopulation){
+
+	my ($databaseIdsRef, $databaseId2OrigNameRef) = $self->__determineDatabaseIdsFromGenes($self->__population);
+
+	@names = @{$databaseIdsRef};	
+
+    }else{
+
+	# we simply use all databaseIds from the annotationProvider
+
+	@names = $self->__annotationProvider->allDatabaseIds();
+
+    }
+
+    # note the population size
+
+    my $populationSize;
+
+    if (! defined $self->__totalNumGenes){
+
+	$populationSize = scalar @names;
+
+    }else{
+
+	$populationSize = $self->__totalNumGenes;
+
+    }
+
+    # now, if the population from which we should sample is bigger
+    # that the number of databaseIds which we have to sample from, we
+    # want to expand the the list of databaseIds with some fake ones,
+    # that correspond to unnannotated genes.
+
+    my $numDatabaseIds = scalar @names;
+
+    for (my $n = $numDatabaseIds; $n < $populationSize; $n++){
 	
-	# now go through each child of this goid, and see if it had
-	# only 1 annotation
-	
-	foreach my $childNode ($hypothesis->{NODE}->childNodes){
+	push (@names, $kFakeIdPrefix.$n);
 	    
-	    # if any of the children have exactly one annotation
-	    # we record the node, and move on to looking at the next
-	    # hypothesis
+    }
 
-	    if (defined($self->__numAnnotationsToGoId($childNode->goid)) &&
+    return @names;
+
+}
+
+############################################################################
+sub __runOneSimulation{
+############################################################################
+# This method runs a single simulation of GO::TermFinder, and returns the 
+# generated hypotheses.  It requires a reference to a list of genes that
+# should be used to sample from, the number of genes that should be chosen,
+# and the size of the background distribution
+
+    my ($self, $namesRef, $numGenes, $populationSize) = @_;
+
+    # first get a random list of genes
+
+    my $listRef = $self->__listOfRandomGenes($namesRef, $numGenes, $populationSize);	
+
+    # now we have a list of genes, we can findTerms for them
+	
+    # however, we have to make sure that for these guys, we attempt
+    # no p-value correction, otherwise we will infinitely recurse,
+    # and make sure that we don't ask to calculate the FDR
+    
+    my @pvals = $self->findTerms(genes        => $listRef,
+				 correction   => 'none',
+				 calculateFDR => 0);
+
+    # now return the hypotheses
+
+    return (@pvals);
+
+}
+
+############################################################################
+sub __listOfRandomGenes{
+############################################################################
+# This private method returns a reference to an array of randomly
+# chosen genes from a population that was passed in by reference
+
+    my ($self, $namesRef, $numGenes, $populationSize) = @_;
+
+    # note that this method of choosing random lists of genes
+    # probably perform worse if you try and findTerms for a really
+    # large number of genes.
+    
+    my %usedIndices;
+    
+    my @list;
+    
+    for (my $j = 0; $j < $numGenes; $j++) {
+	
+	# get a random number
+	
+	my $n = int(rand($populationSize));
+	
+	# keep adding to it until we find one we haven't yet used
+	
+	while (exists ($usedIndices{$n})){
+	    
+	    $n++;
+	    
+	    # wrap round to the beginning if we run off the end of
+	    # the arrays from which we're choosing
+	    
+	    $n = 0 if ($n >= $populationSize);
+	    
+	}
+	
+	push(@list, $namesRef->[$n]);
+	
+	$usedIndices{$n} = undef; # record we've used the gene
+	
+    }
+
+    return \@list;
+
+}
+
+############################################################################
+sub __calculateFDR{
+############################################################################
+# This method calculates the false discovery rate for each hypothesis,
+# such that you know if you draw your cut-off at a particular node,
+# what the false discovery rate is.  It does 50 simulations with
+# random genes, and calculates on average the percentage of nodes that
+# exceed a given value in the simulation, compared to the number that
+# exceed that p-value in the real data.
+
+    my $self = shift;
+
+    # when we run any simulation, any of the variables that get
+    # modified during the findTerms method will be trampled on - thus
+    # we have to save them away, and then restore them afterwards
+
+    my $variables = $self->__saveVariables();
+
+    # we will need access to the real hypotheses
+
+    my @realHypotheses = @{$self->{$kPvalues}};
+
+    # now let's get the population from which we will sample genes
+    # randomly
+
+    my @names = $self->__samplingPopulation;
+
+    my $populationSize = scalar @names;
+
+    # now get the number of genes in the original test set
+    # for which terms were found.
+    
+    my $numGenes = scalar $self->__databaseIds;
+
+    # now we can finally run the simulations
+
+    my $numSimulations = 50;
+
+    for (my $i = 1; $i <= $numSimulations; $i++) {
+
+	# now run a simulation
+
+	my @pvals = $self->__runOneSimulation(\@names, $numGenes, $populationSize);
+
+	# go onto a new simulation if no hypotheses resulted (which is
+	# theoretically possible if the randomly selected genes did
+	# not have more than one annotation to any particular GO node)
+
+	next if !@pvals;
+
+	# now we look at the best pvalue for the random genes, and
+	# determine whether it is more significant that any of the
+	# p-values generated for the real genes.  We will keep a count
+	# of how many times we see a p-value that is better than one
+	# calculated with the real genes, on a per simulation basis
+
+	# if we go through the p-values for the real nodes in reverse
+	# order (we reversed them above), then we can quit out of the
+	# loop as soon as we have a p-value better than the best one
+	# generated from the random genes
+
+	foreach my $realHypothesis (@realHypotheses){
+
+	    # count the number of nodes that this simulation has
+	    # generated a P_VALUE that is better than the P_VALUE for
+	    # the currently considered hypothesis.
+
+	    foreach my $pval (@pvals){
+
+		# finish considering this real hypothesis as soon as
+		# we see a pvalue that is worse from the simulated
+		# data
+
+		last if ($pval->{PVALUE} > $realHypothesis->{PVALUE});
+
+		# if we get here, our simulated pvalue must exceed the
+		# pvalue associated with the real hypothesis
+
+		$realHypothesis->{FDR_OBSERVATIONS}++;
 		
-		$self->__numAnnotationsToGoId($childNode->goid) == 1){
-
-		push (@hypotheses, $hypothesis->{NODE}->goid);
-
-		last; # don't need to check the rest of the children
-
 	    }
 
 	}
 
     }
 
-    return @hypotheses;
+    # now we've run all the simulations, and counted for each real
+    # hypothesis how many hypotheses from the simulations were better,
+    # we calculate on average how many were better per simulation,
+    # then divide by the number of hypotheses that exceed this in our
+    # real data.  We threshold this at a maximum of 1, as we can't have
+    # a FDR of greater than 100%
 
-}
+    foreach (my $i = 0; $i < @realHypotheses; $i++){
 
-############################################################################
-sub __directlyAnnotatedHypotheses{
-############################################################################
-# This method returns an array of all the hypotheses that are directly
-# annotated themselves.
+	if (exists $realHypotheses[$i]->{FDR_OBSERVATIONS}){
 
-    my ($self) = @_;
+	    # the rate is the average number in the simulations that
+	    # are better than this pvalue, divided by the number that
+	    # are better in the real data
 
-    my %directlyAnnotatedNodes;
+	    $realHypotheses[$i]->{FDR_OBSERVATIONS} /= $numSimulations;
 
-    # first we have to work out which nodes are directly annotated by
-    # our list of genes.
+	    $realHypotheses[$i]->{FDR_RATE} = $realHypotheses[$i]->{FDR_OBSERVATIONS} / ($i + 1);
 
-    foreach my $databaseId ($self->__databaseIds) {
+	    if ($realHypotheses[$i]->{FDR_RATE} > 1){
 
-	if ($databaseId =~ /^$kFakeIdPrefix/){
+		$realHypotheses[$i]->{FDR_RATE} = 1;
 
-	    # if they have a fake id, simply record a direct
-	    # annotation to the 'unannotated' node, then skip to
-	    # looking at the next databaseId
+	    }	    
 
-	    $directlyAnnotatedNodes{$kUnannotatedNode->goid} = undef;
+	}else{
 
-	    next;
+	    # a pvalue better than this wasn't observed in any
+	    # simulation - so the FDR should be 0
+
+	    $realHypotheses[$i]->{FDR_RATE} = 0;
+
+	    # and say that we never saw it
+
+	    $realHypotheses[$i]->{FDR_OBSERVATIONS} = 0;
 
 	}
 
-	foreach my $goid (@{$self->__annotationProvider->goIdsByDatabaseId(databaseId => $databaseId,
-									   aspect     => $self->aspect)}) {
+	# now based on the FDR, and the number of hypotheses that would
+	# be chosen at this point, we can calculate the expected number of
+	# false positives, as the FDR x the number of hypotheses
 
-	    $directlyAnnotatedNodes{$goid} = undef;
-
-	}
+	$realHypotheses[$i]->{EXPECTED_FALSE_POSITIVES} = $realHypotheses[$i]->{FDR_RATE} * ($i+1);	
 
     }
 
-    # now check which of our hypotheses are directly annotated, by
-    # seeing which of our hypotheses are in the list of directly
-    # annotated nodes that we just generated.
+    # now restore the variables
 
-    my @directlyAnnotatedHypotheses;
+    $self->__restoreVariables($variables);
 
-    foreach my $hypothesis ($self->__pValues){
+    # finally we want to replace our real hypotheses with our local
+    # copy, as we've made some changes
 
-	# if the hypothesis is directly annotated
+    $self->{$kPvalues} = \@realHypotheses;
 
-	if (exists ($directlyAnnotatedNodes{$hypothesis->{NODE}->goid})){
-
-	    # record it
-
-	    push (@directlyAnnotatedHypotheses, $hypothesis->{NODE}->goid);
-
-	}
-
-    }
-
-    return (@directlyAnnotatedHypotheses);
-    
 }
 
 ############################################################################
@@ -1427,7 +1970,7 @@ sub __addAnnotationsToPValues{
 	    
 	    next if (! exists $nodeToIndex{$goid}); # this node wasn't a hypothesis
 	    
-	    # if this goid was a hypothesis, we can annotated the
+	    # if this goid was a hypothesis, we can annotate the
 	    # corresponding hypothesis with the gene
 
 	    $self->{$kPvalues}->[$nodeToIndex{$goid}]->{ANNOTATED_GENES}->{$databaseId} = $self->__origNameForDatabaseId($databaseId);
@@ -1461,6 +2004,17 @@ sub __ontologyProvider{
 ############################################################################
 sub aspect{
 ############################################################################
+=pod
+
+=head2 aspect
+
+Returns the aspect with the the GO::TermFinder object was constructed.
+
+Usage:
+
+    my $aspect = $termFinder->aspect;
+
+=cut
 
     return $_[0]->{$kArgs}{aspect};
 
@@ -1473,196 +2027,11 @@ __END__
 
 #####################################################################
 #
-#  POD Documentation from here on down
+#  Additional POD Documentation from here on down
 #
 #####################################################################
 
 =pod
-
-=head1 Instance Constructor
-
-=head2 new
-
-This is the constructor.  It expects to be passed named arguments
-for an annotationProvider, an ontologyProvider.  In addition, it
-must be told the aspect of the ontology provider, so that it knows
-how to query the annotationProvider.
-
-There are also some additional, optional arguments:
-
-population: this argument allows a client to indicate the population
-that should used to calculate a background distribution of GO terms.
-In the absence of population argument, then the background
-distribution will be drawn from all genes in the annotationProvider.
-This should be provided as an array reference, and no ambiguous
-names should be provided (see AnnotationProvider for details of name
-ambiguity).  This option is particularly pertinent in the case that
-e.g. you assayed 2000 genes in a two hybrid, and found 20
-interesting ones.  To find significant terms, you need to do it in
-the context of the genes that you assayed, not in the context of all
-genes with annotation.
-
-totalNumGenes: this argument allows a client to indicate that the size
-of the background distribution is in fact larger that the number of genes
-that exist in the annotation provider, and the extra genes are merely
-assumed to be entirely unannotated.
-
-NB: This is an API change, as totalNumGenes was previously required.
-
-Thus - if using 'population', the total number of genes considered
-as the background will be the number of genes in the provided
-population.  If not using 'population', then the number of genes
-that will be considered as the total population will be the number
-of genes in the annotationProvider.  However, if the totalNumGenes
-argument is provided, then that number will be used as the size of
-the population.  If it is not larger than the total number of genes
-in the annotationParser, then the number of genes in the
-annotationParser will be used.  The totalNumGenes and the population
-arguments are mutually exclusive, and both should not be provided at
-the same time.
-
-Usage (population is larger than those with annotations):
-
-   my $termFinder = GO::TermFinder->new(annotationProvider=> $annotationProvider,
-                                        ontologyProvider  => $ontologyProvider,
-                                        totalNumGenes     => $num,
-                                        aspect            => <P|C|F>);
-
-
-Usage (use all annotated genes as population):
-
-   my $termFinder = GO::TermFinder->new(annotationProvider=> $annotationProvider,
-                                        ontologyProvider  => $ontologyProvider,
-                                        aspect            => <P|C|F>);
-
-Usage (use a subset of genes as the background population):
-
-   my $termFinder = GO::TermFinder->new(annotationProvider=> $annotationProvider,
-                                        ontologyProvider  => $ontologyProvider,
-                                        population        => \@genes,
-                                        aspect            => <P|C|F>);
-
-=head1 Instance Methods
-
-=head2 findTerms
-
-This method returns an array of hash references that indicates what
-terms can annotate the list of genes with what P-value.  The
-contents of the hashes in the returned array are:
-
-    key                   value
-    -------------------------------------------------------------------------
-    NODE                  A GO::Node
-
-    PVALUE		  The P-value for having the observed number of
-                          annotations that the provided list of genes
-                          has to that node
-
-    CORRECTED_PVALUE      The CORRECTED_PVALUE is the PVALUE multiplied
-                          by the number of nodes in the minimal set
-                          of hypotheses from which all other
-                          hypotheses can be generated.  A hypothesis
-                          is any node to which 2 or more genes in the
-                          supplied list are annotated, either
-                          directly or indirectly.  The minimal subset
-                          of hypotheses from which all others can be
-                          constructed consists of the union of the
-                          following classes of node: 
-
-                           1).  Leaf hypotheses (i.e. hypotheses which 
-                                have no children that were tested as hypotheses).
-
-                           2).  Hypotheses that have at least one non-hypothesis 
-                                child with an annotation.
-      
-                           3).  Hypotheses with direct annotation.
-
-    NUM_ANNOTATIONS       The number of genes within the provided list that
-                          are annotated to the node.
-
-    TOTAL_NUM_ANNOTATIONS The number of genes across the genome
-                          annotated to the node
-
-    ANNOTATED_GENES       A hash reference, whose keys are the
-                          databaseIds that are annotated to the node,
-                          and whose values are the original name
-                          supplied to the findTerms() method.
-
-The entries are sorted by increasing p-value (ie least likely is
-first).  If there is a tie in the p-value, then the sort order is
-determined by GOID, using a cmp comparison.
-
-This method expects to be passed, by reference, a list of gene names
-for which terms will be found.  If a passed in name is ambiguous (see
-AnnotationProvider), then the following will occur:
-
-
-    1) If the name can be used as a standard name, it will assume that
-       it is that.
-
-    2) Otherwise it will not use it.
-
-Currently a warning will be printed to STDOUT in the case of an
-ambiguous name being used.
-
-The passed in gene names are converted into a list of databaseIds.  If
-a gene does not map to a databaseId, then an undef is put in the list
-- however, if the same gene name, which does not map to a databaseId,
-is used twice then it will produce only one undef in the list.  If
-more than one gene name maps to the same databaseId (either because
-you used the same name twice, or you used an alias as well), then that
-databaseId is only put into the list once, and a warning is printed.
-
-
-If a gene name does not have any information returned from the
-AnnotationProvider, then it is assumed that the gene is entirely
-unannotated.  For these purposes, TermFinder annotates such genes to
-the root node (Gene_Ontology), its immediate child (which indicates
-the aspect of the ontology (such as biological_process), and a dummy
-go node, corresponding to unannotated.  This node will have a goid of
-'GO:XXXXXXX', and a term name of 'unannotated'.  No other information
-will be set up for this GO::Node, so you should not count on being
-able to retrieve it.  What it does mean is that you can determine if
-the predominant feature of a set of genes is that they have no
-annotation.
-
-If more genes are provided that have been indicated exist in the
-genome (as provided during object construction), then an error message
-will be printed out, and an empty list will be returned.
-
-Usage:
-
-    my @pvalueStructures = $termFinder->findTerms(genes=>\@genes);
-
-    my $hypothesis = 1;						    
-
-    foreach my $pvalue (@pvalueStructures){
-
-    print "-- $hypothesis of ", scalar @pvalueStructures, "--\n",
-
-	"GOID\t", $pvalue->{NODE}->goid, "\n",
-
-	"TERM\t", $pvalue->{NODE}->term, "\n",
-
-	"P-VALUE\t", $pvalue->{PVALUE}, "\n",
-
-	"CORRECTED P-VALUE\t", $pvalue->{CORRECTED_PVALUE}, "\n",
-	
-        "NUM_ANNOTATIONS\t", $pvalue->{NUM_ANNOTATIONS}, " (of ", $pvalue->{TOTAL_NUM_ANNOTATIONS}, ")\n",
-
-        "ANNOTATED_GENES\t", join(", ", values (%{$pvalue->{ANNOTATED_GENES}})), "\n\n";
-
-    $hypothesis++;
-
-    }
-
-=head2 aspect
-
-Returns the aspect with the the GO::TermFinder object was constructed.
-
-Usage:
-
-    my $aspect = $termFinder->aspect;
 
 =head1 Authors
 

@@ -5,7 +5,7 @@ package GO::OntologyProvider::OntologyParser;
 # Date Begun : Summer 2001
 # Rewritten  : September 29th 2002
 
-# $Id: OntologyParser.pm,v 1.15 2003/12/03 02:36:29 sherlock Exp $
+# $Id: OntologyParser.pm,v 1.17 2004/05/05 22:20:47 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -152,9 +152,9 @@ use GO::OntologyProvider;
 
 use GO::Node;
 
-use Storable qw(nstore);
+use Storable qw (nstore);
 
-$VERSION = 0.13;
+$VERSION = 0.14;
 $PACKAGE = "GO::OntologyProvider::OntologyParser";
 
 ##################################################################
@@ -574,6 +574,10 @@ sub allNodes{
 sub rootNode{
 ############################################################################
 # This returns the root node in the ontology.
+#
+# Usage:
+#
+#    my $rootNode = $ontologyParser->rootNode;
 
     return ($_[0]->{$kRootNode});
 
@@ -587,7 +591,7 @@ sub nodeFromId{
 #
 # Usage :
 #
-#    $self->nodeFromId($goid);
+#    my $node = $ontologyParser->nodeFromId($goid);
 
     my ($self, $goid) = @_;
 
@@ -604,6 +608,20 @@ sub nodeFromId{
 	return undef;
 
     }
+
+}
+
+############################################################################
+sub numNodes{
+############################################################################
+# This public method returns the number of nodes that exist with the
+# ontology
+#
+# Usage :
+#
+#    my $numNodes = $ontologyParser->numNodes;
+
+    return scalar (keys %{$_[0]->{$kNodes}});
 
 }
 
@@ -727,6 +745,15 @@ returned.  Note if you try to call any methods on an undef, you will
 get a fatal runtime error, so if you can't guarantee all GOIDs that
 you supply are good, you should check that the return value from this
 method is defined.
+
+=head2 numNodes
+
+This public method returns the number of nodes that exist with the
+ontology
+
+Usage :
+
+    my $numNodes = $ontologyParser->numNodes;
 
 =head2 serializeToDisk
 

@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Id: batchGOView.pl,v 1.3 2003/12/17 02:15:36 sherlock Exp $
+# $Id: batchGOView.pl,v 1.4 2004/05/05 22:25:38 sherlock Exp $
 
 # Date   : 4th December 2003
 # Author : Gavin Sherlock
@@ -114,21 +114,20 @@ USAGE
 
 my $confFile = shift;
 
-my ($annotationFile, $ontologyFile, $aspect, $totalNumGenes, $outDir,
-    $geneUrl, $goidUrl, $pvalueCutOff) = &ReadConfFile($confFile);
+my $conf = &ReadConfFile($confFile);
 
 # now set up the objects we need
 
-my $ontology = GO::OntologyProvider::OntologyParser->new(ontologyFile => $ontologyFile);
+my $ontology = GO::OntologyProvider::OntologyParser->new(ontologyFile => $conf->{'ontologyFile'});
 
-my $annotation = GO::AnnotationProvider::AnnotationParser->new(annotationFile=>$annotationFile);
+my $annotation = GO::AnnotationProvider::AnnotationParser->new(annotationFile=>$conf->{'annotationFile'});
 
-$totalNumGenes ||= $annotation->numAnnotatedGenes;
+$conf->{'totalNumGenes'} ||= $annotation->numAnnotatedGenes;
 
 my $termFinder = GO::TermFinder->new(annotationProvider=> $annotation,
 				     ontologyProvider  => $ontology,
-				     totalNumGenes     => $totalNumGenes,
-				     aspect            => $aspect);
+				     totalNumGenes     => $conf->{'totalNumGenes'},
+				     aspect            => $conf->{'aspect'});
 
 my $report  = GO::TermFinderReport::Html->new();
 
@@ -136,7 +135,7 @@ my $report  = GO::TermFinderReport::Html->new();
 
 # now open an html file that will have a list of links for all the results
 
-open (LIST, ">".$outDir."batchGOViewList.html")|| die "Cannot create ".$outDir."list.html : $!";
+open (LIST, ">".$conf->{'outDir'}."batchGOViewList.html")|| die "Cannot create ".$conf->{'outDir'}."list.html : $!";
 
 # go through each file
 
@@ -174,20 +173,21 @@ foreach my $file (@ARGV){
 
     # now we want to find terms
 
-    my @pvalues = $termFinder->findTerms(genes=>[(@list, @notFound)]);
+    my @pvalues = $termFinder->findTerms(genes        => [(@list, @notFound)],
+					 calculateFDR => $conf->{'calculateFDR'});
 
     # now we hand these off to the GO::View module, to create the image etc.
 
     my $goView = GO::View->new(-ontologyProvider   => $ontology,
 			       -annotationProvider => $annotation,
 			       -termFinder         => \@pvalues,
-			       -aspect             => $aspect,
+			       -aspect             => $conf->{'aspect'},
 			       -configFile         => $confFile,
-			       -imageDir           => $outDir,
+			       -imageDir           => $conf->{'outDir'},
 			       -imageLabel         => "Batch GO::View",
-			       -nodeUrl            => $goidUrl,
-			       -geneUrl            => $geneUrl,
-			       -pvalueCutOff       => $pvalueCutOff);
+			       -nodeUrl            => $conf->{'goidUrl'},
+			       -geneUrl            => $conf->{'geneUrl'},
+			       -pvalueCutOff       => $conf->{'pvalueCutOff'});
 
     # We now want to get the image and map that has hopefully been
     # created by the GO::View module, so we can print it to our html
@@ -231,7 +231,7 @@ sub GenerateHTMLFile{
 
     $htmlFile .= ".html";
 
-    my $fullHtmlFile = $outDir.$htmlFile;
+    my $fullHtmlFile = $conf->{'outDir'}.$htmlFile;
 
     open (HTML, ">$fullHtmlFile") || die "Cannot create $fullHtmlFile : $!";
 
@@ -242,18 +242,18 @@ sub GenerateHTMLFile{
     print HTML $map if defined $map;
 
     my $numRows = $report->print(pvalues      => $pvaluesRef,
-				 aspect       => $aspect,
+				 aspect       => $conf->{'aspect'},
 				 numGenes     => $numGenes,
-				 totalNum     => $totalNumGenes,
+				 totalNum     => $conf->{'totalNumGenes'},
 				 fh           => \*HTML,
-				 pvalueCutOff => $pvalueCutOff,
-				 geneUrl      => $geneUrl,
-				 goidUrl      => $goidUrl);
+				 pvalueCutOff => $conf->{'pvalueCutOff'},
+				 geneUrl      => $conf->{'geneUrl'},
+				 goidUrl      => $conf->{'goidUrl'});
 
     if ($numRows == 0){
 
 	print HTML h4(font({-color=>'red'}),
-		      center("There were no GO nodes exceeding the p-value cutoff of $pvalueCutOff for the genes in $file."));
+		      center("There were no GO nodes exceeding the p-value cutoff of $conf->{'pvalueCutOff'} for the genes in $file."));
 
     }
 
@@ -324,6 +324,8 @@ sub ReadConfFile{
 
     $conf{'pvalueCutOff'} ||= 1;
 
+    $conf{'calculateFDR'} ||= 0;
+
     # now make sure that file paths are treated relative to the conf file
 
     my $confDir = "./"; # default
@@ -346,10 +348,9 @@ sub ReadConfFile{
 
     }
 
-    # return a hash slice
+    # return a reference to the hash
 
-    return @conf{qw(annotationFile ontologyFile aspect totalNumGenes
-		    outDir geneUrl goidUrl pvalueCutOff)};
+    return \%conf;
 
 }
 
@@ -358,7 +359,7 @@ sub GenerateFrameset{
 # start an index file that a user can use to browse the output data,
 # using frames
 
-    open (FRAMES, ">".$outDir."batchGOView.html") || die "Cannot create ${outDir}batchGOView.html : $!";
+    open (FRAMES, ">".$conf->{'outDir'}."batchGOView.html") || die "Cannot create $conf->{'outDir'}batchGOView.html : $!";
 
     print FRAMES frameset({-cols         => "100, *",
 			   -marginheight => '0',

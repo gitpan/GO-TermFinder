@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Id: analyze.pl,v 1.5 2003/12/16 23:39:52 sherlock Exp $
+# $Id: analyze.pl,v 1.6 2004/05/06 01:35:52 sherlock Exp $
 
 # Date   : 16th October 2003
 # Author : Gavin Sherlock
@@ -36,6 +36,8 @@ use diagnostics;
 use GO::TermFinder;
 use GO::AnnotationProvider::AnnotationParser;
 use GO::OntologyProvider::OntologyParser;
+
+use GO::TermFinderReport::Text;
 
 use GO::Utils::File    qw (GenesFromFile);
 use GO::Utils::General qw (CategorizeGenes);
@@ -84,7 +86,7 @@ USAGE
 # now get our annotation file and number of genes
 
 my $annotationFile = shift;
-my $numGenes       = shift;
+my $totalNum       = shift;
 
 # now set up the objects we need
 
@@ -96,20 +98,23 @@ my $annotation = GO::AnnotationProvider::AnnotationParser->new(annotationFile=>$
 
 my $termFinderP = GO::TermFinder->new(annotationProvider=> $annotation,
 				      ontologyProvider  => $process,
-				      totalNumGenes     => $numGenes,
+				      totalNumGenes     => $totalNum,
 				      aspect            => 'P');
 
 
 my $termFinderC = GO::TermFinder->new(annotationProvider=> $annotation,
 				      ontologyProvider  => $component,
-				      totalNumGenes     => $numGenes,
+				      totalNumGenes     => $totalNum,
 				      aspect            => 'C');
 
 my $termFinderF = GO::TermFinder->new(annotationProvider=> $annotation,
 				      ontologyProvider  => $function,
-				      totalNumGenes     => $numGenes,
+				      totalNumGenes     => $totalNum,
 				      aspect            => 'F');
 
+my $report = GO::TermFinderReport::Text->new();
+
+my $cutoff = 0.05;
 
 # now go through each file
 
@@ -117,7 +122,7 @@ foreach my $file (@ARGV){
 
     print "Analyzing $file\n";
 
-    my @genes = GenesFromFile($file);    
+    my @genes = GenesFromFile($file); 
 
     my (@list, @notFound, @ambiguous);
 
@@ -172,39 +177,20 @@ foreach my $file (@ARGV){
 
 	print OUT "Finding terms for ", $termFinder->aspect, "\n\n";
 
-	my @pvalues = $termFinder->findTerms(genes=>\@list);
+	my @pvalues = $termFinder->findTerms(genes        => \@list,
+					     calculateFDR => 1);	
 
-	my $hypothesis = 1;
-	
-	foreach my $pvalue (@pvalues){
-	    
-	    next if ($pvalue->{CORRECTED_PVALUE} > 0.05);
-	
-	    print OUT "-- $hypothesis of ", scalar @pvalues, " --\n",
-	    
-	    "GOID\t", $pvalue->{NODE}->goid, "\n",
-	    
-	    "TERM\t", $pvalue->{NODE}->term, "\n",
-	    
-	    "CORRECTED P-VALUE\t", $pvalue->{CORRECTED_PVALUE}, "\n",
-	    
-	    "UNCORRECTED P-VALUE\t", $pvalue->{PVALUE}, "\n",
-
-	    "NUM_ANNOTATIONS\t", $pvalue->{NUM_ANNOTATIONS}, " of ", scalar (@list), " in the list, vs ", $pvalue->{TOTAL_NUM_ANNOTATIONS}, " of $numGenes in the genome\n",
-
-	    "The genes annotated to this node are:\n",
-
-	    join(", ", values(%{$pvalue->{ANNOTATED_GENES}})), "\n";
-	    
-	    $hypothesis++;
-	    
-	}
+	my $numHypotheses = $report->print(pvalues  => \@pvalues,
+					   numGenes => scalar(@list),
+					   totalNum => $totalNum,
+					   cutoff   => $cutoff,
+					   fh       => \*OUT);
 
 	# if they had no significant P-values
 
-	if ($hypothesis == 1){
+	if ($numHypotheses == 0){
 
-	    print OUT "No terms were found for this aspect with a corrected P-value <= 0.05.\n";
+	    print OUT "No terms were found for this aspect with a corrected P-value <= $cutoff.\n";
 
 	}
 

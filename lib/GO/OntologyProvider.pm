@@ -4,7 +4,7 @@ package GO::OntologyProvider;
 # Author       : Gavin Sherlock
 # Date Begun   : September 23rd 2002
 
-# $Id: OntologyProvider.pm,v 1.6 2003/11/26 19:30:25 sherlock Exp $
+# $Id: OntologyProvider.pm,v 1.7 2004/05/05 22:12:33 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -66,7 +66,7 @@ use diagnostics;
 
 use vars qw ($VERSION);
 
-$VERSION = 0.11;
+$VERSION = 0.12;
 
 ############################################################################
 sub allNodes{
@@ -121,7 +121,7 @@ GOID, should one exist.  Otherwise it returns undef.
 
 Usage:
 
-	my $node = $ontologyParser->nodeFromId("GO:0003673");
+	my $node = $ontologyProvider->nodeFromId("GO:0003673");
 
 =cut
 ############################################################################
@@ -130,6 +130,27 @@ Usage:
 
 }
 
+############################################################################
+sub numNodes{
+############################################################################
+=pod
+
+=head2 numNodes
+
+This method returns the number of nodes that exist within the
+ontology.
+
+Usage:
+
+	my $numNodes = $ontologyProvider->numNodes;
+
+=cut
+
+############################################################################
+
+    $_[0]->__complainStubMethod;
+
+}
 
 ############################################################################
 sub __complainStubMethod{

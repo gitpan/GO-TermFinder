@@ -1,11 +1,11 @@
 use Test;
-BEGIN { plan tests => 1127, todo => [1112] };
+BEGIN { plan tests => 3236, todo => [1112] };
 
 # File       : GO-TermFinder.t
 # Author     : Gavin Sherlock
 # Date Begun : September 1st 2003
 
-# $Id: GO-TermFinder.t,v 1.5 2003/12/11 19:47:35 sherlock Exp $
+# $Id: GO-TermFinder.t,v 1.6 2004/05/06 01:58:27 sherlock Exp $
 
 # This file forms a set of tests for the GO::TermFinder class
 
@@ -101,7 +101,7 @@ my @newpvalues = $termFinder->findTerms(genes=>[qw(ypl250c
 
 # and compare that the stuff returned looks exactly the same
 
-&compareHypotheses(\@pvalues, \@newpvalues);
+&compareHypotheses(\@pvalues, \@newpvalues, 1);
 
 # now let's test the functionality of using a defined population
 # to create the background distribution.  If we simply say that
@@ -135,7 +135,7 @@ my @poppvalues = $newTermFinder->findTerms(genes=>[qw(ypl250c
 
 # again, check that the stuff returned looks exactly the same
 
-&compareHypotheses(\@pvalues, \@poppvalues);
+&compareHypotheses(\@pvalues, \@poppvalues, 1);
 
 # now try using a TermFinder with a limited population of just a few genes.
 # All of the returned nodes should have a probability of 1
@@ -238,6 +238,156 @@ ok($hypothesis->{NUM_ANNOTATIONS}, $numGenes);
 ok($hypothesis->{TOTAL_NUM_ANNOTATIONS}, 
 
    ($populationSize - $annotation->numAnnotatedGenes($aspect)));
+
+# all of the above tests have been using the default setting for
+# multiple hypothesis correction, which should default to bonferroni.
+# We now need to test that using bonferroni as the supplied argument
+# gives the same answers as no argument, and also check that it gives
+# the expected correction factor, and run the termfinder with the
+# 'simulation' argument, and with the 'none' argument.
+
+# first try with an explicit bonferroni argument
+
+my @bonferroni = $termFinder->findTerms(genes      => [qw(ypl250c
+							  Met11
+							  mxr1
+							  Met17
+							  SAM3
+							  met28
+							  Str3
+							  MMp1
+							  mET1
+							  YIl074c
+							  Mht1
+							  mEt14
+							  Met16
+							  Met3
+							  mET10
+							  ecm17
+							  Met2
+							  MuP1
+							  MeT6)],
+					correction => 'bonferroni');
+
+# and compare the results to previously generated pvalues
+
+&compareHypotheses(\@newpvalues, \@bonferroni, 1);
+
+# we can also check that the correction value was correct - it should
+# be 52, which is the total number of nodes to which the genes in the
+# provided list are collectively annotated, both directly and
+# indirectly, excepting any node which has only a single annotation in
+# the background distribution.  Can only test if the corrected p_value
+# is less than 1, as we have a ceiling placed on it at 1.
+
+foreach my $hypothesis (@newpvalues){
+
+    if ($hypothesis->{CORRECTED_PVALUE} < 1){
+
+	ok ($hypothesis->{CORRECTED_PVALUE}/$hypothesis->{PVALUE}, 52);
+
+    }
+
+}
+
+# now let's test the termFinder when we ask for no correction - we
+# should get identical results as we got above, except there are no
+# corrected p-values.
+
+my @noCorrection = $termFinder->findTerms(genes      => [qw(ypl250c
+							    Met11
+							    mxr1
+							    Met17
+							    SAM3
+							    met28
+							    Str3
+							    MMp1
+							    mET1
+							    YIl074c
+							    Mht1
+							    mEt14
+							    Met16
+							    Met3
+							    mET10
+							    ecm17
+							    Met2
+							    MuP1
+							    MeT6)],
+					  correction => 'none');
+
+&compareHypotheses(\@newpvalues, \@noCorrection, 0);
+
+# as our final test of multiple hypothesis correction, we want to
+# see if the simulation method works correctly
+
+my @simulation = $termFinder->findTerms(genes      => [qw(ypl250c
+							  Met11
+							  mxr1
+							  Met17
+							  SAM3
+							  met28
+							  Str3
+							  MMp1
+							  mET1
+							  YIl074c
+							  Mht1
+							  mEt14
+							  Met16
+							  Met3
+							  mET10
+							  ecm17
+							  Met2
+							  MuP1
+							  MeT6)],
+					correction => 'simulation');
+
+# and compare the results to previously generated pvalues, but ignore
+# the corrected pvalues
+
+&compareHypotheses(\@newpvalues, \@simulation, 0);
+
+# not sure what tests we'll do for the FDR calculations, but we should
+# at least make sure that they don't throw an error when generated,
+# and that the pvalues are the same:
+
+my @fdr = $termFinder->findTerms(genes      => [qw(ypl250c
+						   Met11
+						   mxr1
+						   Met17
+						   SAM3
+						   met28
+						   Str3
+						   MMp1
+						   mET1
+						   YIl074c
+						   Mht1
+						   mEt14
+						   Met16
+						   Met3
+						   mET10
+						   ecm17
+						   Met2
+						   MuP1
+						   MeT6)],
+				 calculateFDR => 1);
+
+&compareHypotheses(\@fdr, \@bonferroni, 1);
+
+# now let's test that if we say that we're looking for significant
+# terms when we simply have a list of all genes, that we get none -
+# indeed the uncorrected p-values should all be equal to 1.
+
+# for some reason, this run of findTerms takes forever to run, so
+# until I work out why, and optimize it, this test is commented out,
+# except for my private testing, in which I know it works
+
+#my @nonsignificant = $termFinder->findTerms(genes=>[$annotation->allDatabaseIds]);
+#
+#foreach my $hypothesis (@nonsignificant){
+#
+#    ok($hypothesis->{PVALUE}, 1);
+#
+#}
 
 # Now let's test some of the math function insider the TermFinder.
 
@@ -406,15 +556,27 @@ sub testHypotheses{
 ######################################################################################
 sub compareHypotheses{
 ######################################################################################
-# This subroutine expects to receive two arrays (by reference) of hypotheses
-# generated by GO::TermFinder.  It will check whether they are identical
+# This subroutine expects to receive two arrays (by reference) of
+# hypotheses generated by GO::TermFinder.  It will check whether they
+# are identical.  An third arguments indicates if corrected p-values
+# should be compared.
 
-    my ($ref1, $ref2) = @_;
+    my ($ref1, $ref2, $shouldCompareCorrectedPValues) = @_;
 
     for (my $i = 0; $i < @{$ref1}; $i++){
 
-	ok($ref1->[$i]->{PVALUE},                $ref2->[$i]->{PVALUE});  
-	ok($ref1->[$i]->{CORRECTED_PVALUE},      $ref2->[$i]->{CORRECTED_PVALUE});  
+	ok($ref1->[$i]->{PVALUE},                $ref2->[$i]->{PVALUE});
+
+	# Sometimes we don't want to compare the corrected p-values,
+	# as a different method of multiple hypothesis correction may
+	# have been used between two different runs
+
+	if ($shouldCompareCorrectedPValues){
+
+	    ok($ref1->[$i]->{CORRECTED_PVALUE},      $ref2->[$i]->{CORRECTED_PVALUE});  
+
+	}
+
 	ok($ref1->[$i]->{NUM_ANNOTATIONS},       $ref2->[$i]->{NUM_ANNOTATIONS});  
 	ok($ref1->[$i]->{TOTAL_NUM_ANNOTATIONS}, $ref2->[$i]->{TOTAL_NUM_ANNOTATIONS}); 
 	ok($ref1->[$i]->{NODE}->goid,            $ref2->[$i]->{NODE}->goid);  
@@ -432,7 +594,7 @@ sub compareHypotheses{
 
 	    ok (exists $ref2->[$i]->{ANNOTATED_GENES}{$gene});
 
-	    # and has the same name - not has to be done case-insensitively
+	    # and has the same name - note has to be done case-insensitively
 	    
 	    ok(uc($ref1->[$i]->{ANNOTATED_GENES}{$gene}), uc($ref2->[$i]->{ANNOTATED_GENES}{$gene}));
 
@@ -450,8 +612,12 @@ sub compareHypotheses{
  CVS information:
 
  # $Author: sherlock $
- # $Date: 2003/12/11 19:47:35 $
+ # $Date: 2004/05/06 01:58:27 $
  # $Log: GO-TermFinder.t,v $
+ # Revision 1.6  2004/05/06 01:58:27  sherlock
+ # Added in tests to check that simulation, bonferroni and FDR options
+ # work correctly.
+ #
  # Revision 1.5  2003/12/11 19:47:35  sherlock
  # added in some tests to check that TermFinder behaves correctly in the
  # case that unrecognized gene names are passed in, which was not working

@@ -56,7 +56,7 @@ use diagnostics;
 
 use vars qw ($VERSION);
 
-$VERSION = 0.1;
+$VERSION = 0.11;
 
 use CGI qw/:all :html3/;
 
@@ -96,10 +96,11 @@ This method prints out the report, in the form of an html table.  The
 table is ordered in ascending order of p-value (i.e. most significant
 first), and will print out the GO node, the frequency of use of that
 node within the selected group of genes, and the population as a
-whole, the p-value of that, and a list of the genes annotated to that
-node.  It returns the number of annotation rows in the table that
-exceed the provided p-value cutoff (which may even be zero, in which
-case nothing is printed).
+whole, the corrected p-value of that, and a list of the genes
+annotated to that node.  If the FDR was calculated, the FDR will also
+be printed.  It returns the number of annotation rows in the table
+that exceed the provided p-value cutoff (which may even be zero, in
+which case nothing is printed).
 
 Usage:
 
@@ -185,6 +186,8 @@ goidUrl  : A url to which you want the GOIDs linked.  Must contain the
     my $rows;
     my $numRows = 0;
 
+    my $hasFdr = 0;
+
     foreach my $pvalue (@{$pvalues}){
 
 	# skip if above cutoff
@@ -239,6 +242,17 @@ goidUrl  : A url to which you want the GOIDs linked.  Must contain the
 
 	$value =~ s/^(0\.[0-9]{5})[0-9]*$/$1/;
 
+	if (defined ($pvalue->{NUM_OBSERVATIONS}) && $pvalue->{NUM_OBSERVATIONS} == 0){
+
+	    # simulations were used to generate the corrected p-value.
+	    # If we never saw anything better than this p-value in the
+	    # simulations, then prepend a less than sign to the
+	    # corrected p-value
+
+	    $value = "&lt;".$value;
+
+	}
+
 	# now deal with the GOID column
 
 	my $goColumn;
@@ -263,8 +277,23 @@ goidUrl  : A url to which you want the GOIDs linked.  Must contain the
 
 	}
 
+	# deal with FDR
+
+	my ($fdr, $falsePositives);
+
+	if (exists ($pvalue->{FDR_RATE})){
+
+	    $hasFdr = 1;
+
+	    $fdr = sprintf ("%.2f%%", $pvalue->{FDR_RATE} * 100);
+
+	    $falsePositives = sprintf ("%.2f", $pvalue->{EXPECTED_FALSE_POSITIVES});
+
+	}
+
 	$rows .= $self->_oneRow($goColumn, $frequency,
-				$genomeFrequency, $value, $loci);
+				$genomeFrequency, $value, $loci, $fdr,
+				$falsePositives);
 
 	$numRows++;
 
@@ -272,7 +301,7 @@ goidUrl  : A url to which you want the GOIDs linked.  Must contain the
 
     # print the table out, if there were any rows
 
-    $self->_printTable($fh, $rows, $aspect, $cutoff) if ($numRows > 0);
+    $self->_printTable($fh, $rows, $aspect, $cutoff, $hasFdr) if ($numRows > 0);
 
     return $numRows;
 
@@ -285,13 +314,23 @@ sub _oneRow{
 # based on what was passed in.
 
     my ($self, $goColumn, $frequency, $genomeFrequency, $pvalue,
-	$loci) = @_;
+	$loci, $fdr, $falsePositives) = @_;
 
-    return Tr(td($goColumn).
+    my $row = td($goColumn).
 	      td($frequency).
 	      td($genomeFrequency).
-	      td($pvalue).
-	      td($loci));
+	      td($pvalue);
+
+    if (defined($fdr)){
+
+	$row .= td($fdr).td($falsePositives);
+
+    }
+	      td($loci);
+
+    $row .= td($loci);
+
+    return Tr($row);
 
 }
 
@@ -300,7 +339,7 @@ sub _printTable{
 ###################################################################
 # This method prints out the actual html table
 
-    my ($self, $fh, $rows, $aspect, $cutoff) = @_;
+    my ($self, $fh, $rows, $aspect, $cutoff, $hasFdr) = @_;
 
     $aspect =~ s/^F/Function/i;
     $aspect =~ s/^P/Process/i;
@@ -314,20 +353,31 @@ sub _printTable{
     print table({-align       => 'center',
 		 -border      => 1,
 		 -cellpadding => 2,
-		 -width       => 300},
+		 -width       => 400},
 		Tr(td({-bgcolor => '#FFCC99',
-		       -align   => 'left',
-		       -width   => '100%'},
-		      b("Terms from the $aspect Ontology exceeding a pvalue cutoff of $cutoff"))));
+		       -align   => 'center',
+		       -width   => '100%',
+		       -nowrap  => undef},
+		      b("Terms from the $aspect Ontology with p-value as good or better than $cutoff"))));
+
+    my $headings = th({-align => 'center'}, "Gene Ontology term").
+		   th({-align => 'center'}, "Cluster frequency").
+		   th({-align => 'center'}, "Genome frequency of use").
+		   th({-align => 'center'}, "Corrected P-value");
+
+    if ($hasFdr){
+
+	$headings .= th({-align => 'center'}, "FDR").
+	    th({-align => 'center'}, "False Positives");
+
+    }
+
+    $headings .= th({-align => 'center'}, "Genes annotated to the term");
 
     print table({-align  => 'center',
 		 -border => 2},
 		Tr({-bgcolor  => '#CCCCFF'},
-		   th({-align => 'center'}, "Gene Ontology term").
-		   th({-align => 'center'}, "Cluster frequency").
-		   th({-align => 'center'}, "Genome frequency of use").
-		   th({-align => 'center'}, "P-value").
-		   th({-align => 'center'}, "Genes annotated to the term")).
+		   $headings).
 		$rows), p;
 
     select($oldFh);
