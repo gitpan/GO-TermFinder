@@ -152,7 +152,6 @@ Copyright (c) 2003 Stanford University. All Rights Reserved.
 This module is free software; you can redistribute it and/or 
 modify it under the same terms as Perl itself.
 
-
 =head1 APPENDIX
 
 The rest of the documentation details each of the public methods. 
@@ -168,7 +167,7 @@ use GO::View::GD;
 use vars qw ($PACKAGE $VERSION);
 
 $PACKAGE = 'GO::View';
-$VERSION = 0.12;
+$VERSION = 0.13;
 
 my $kReplacementText = "<REPLACE_THIS>";
 
@@ -435,6 +434,8 @@ sub _init {
 
     my ($self, %args) = @_;
 
+    # first do some sanity checks
+
     if (!$args{-ontologyProvider} || !$args{-configFile} || 
 	!$args{-imageDir}) {
 
@@ -461,7 +462,12 @@ sub _init {
 
     }
 
-    if (!$goid) {  ### create graph for term finder
+    # if we have no goid passed in, then we're likely creating an
+    # image based upon the output from GO::TermFinder.  In this case
+    # we just set the goid to the node corresponding to the aspect
+    # that is being dealt with
+
+    if (!$goid) {
 
 	# set top goid for the given ontology (molecular_function, 
 	# biological_process, or cellular_component).
@@ -469,6 +475,8 @@ sub _init {
 	$goid = $self->_initGoidFromOntology; 
 
     }
+
+    # now store the goid
 
     $self->{GOID} = $goid;
 
@@ -540,12 +548,17 @@ sub _init {
 
     }
 
+    # now set the TREE_TYPE, which can be up or down.
+
     $self->{TREE_TYPE} = $args{-treeType} || 'down';
 
     my $count;
 
-    if ($args{-annotationProvider} && $args{-termFinder } && 
+    if ($args{-annotationProvider} && $args{-termFinder} && 
 	$args{-aspect}) {
+
+	# we're dealing with GO::TermFinder output, so we'll
+	# store and initialize all the information we need
 
 	$self->{PVALUE_CUTOFF} = $args{-pvalueCutOff} || 0.01;
 
@@ -565,6 +578,8 @@ sub _init {
 
     }
   
+    # store some more variables
+
     $self->{IMAGE_LABEL} = $args{-imageLabel};
 
     $self->{GENE_URL} = $args{-geneUrl};
@@ -621,9 +636,8 @@ sub _createGraph {
 
 	if (!$self->{TOP_GOID}) { return; }
 	    
-	$self->{NODE_NUM} = 
-	    $self->_descendantCount($self->{TOP_GOID},
-				    $self->{GENERATION});
+	$self->{NODE_NUM} = $self->_descendantCount($self->{TOP_GOID},
+						    $self->{GENERATION});
 
     }
     
@@ -644,42 +658,62 @@ sub _createGraph {
     my %foundNode;
     my %foundEdge;
     
-    $self->_addNode($goid);
+    # add the top node to the graph
+
+    $self->_addNode($goid,
+		    fillcolor => $self->_colorForNode($goid),
+		    color     => $self->_colorForNode($goid));
+
+    # and record that we've seen it
 
     $foundNode{$goid}++;
 
     # draw go_path for ancestor goid ($self->{GOID}) to each
-    # descendant goid in @{$self->{DESCENDANT_GOID_ARRAY_REF}}.  An
-    # example use is for GO Term Finder.
+    # descendant goid in @{$self->{DESCENDANT_GOID_ARRAY_REF}}.  The
+    # DESCENDANT_GOID_ARRAY_REF is only created if we were dealing
+    # with output from GO::TermFinder
 
     if ($self->{DESCENDANT_GOID_ARRAY_REF}) {
 	
-	my $topAncestorNode = 
-	    $self->_ontologyProvider->nodeFromId($self->_goid);
+	# get the top node
 
-	$self->{TERM_HASH_REF_FOR_GOID}{$self->_goid} 
-	    = $topAncestorNode->term;
+	my $topAncestorNode = $self->_ontologyProvider->nodeFromId($self->_goid);
+
+	# and record its term
+
+	$self->{TERM_HASH_REF_FOR_GOID}{$self->_goid} = $topAncestorNode->term;
 
 	my $i;
+
+	# now go through every GO Node to which our list of genes is
+	# directly annotated that contibuted to the gene count of a
+	# node that passed the cutoff
 
 	foreach my $goid (@{$self->{DESCENDANT_GOID_ARRAY_REF}}) {
 
 	    my $childNode = $self->_ontologyProvider->nodeFromId($goid);
 
+	    # get the list of paths that link from this node up to the
+	    # top - the first node in each path is the root, and the
+	    # final node is the immediate parent of $childNode
+
 	    my @path = $childNode->pathsToAncestor($topAncestorNode);
+
+	    # now add that path to the graph
 
 	    my $found = $self->_addAncestorPathToGraph($childNode, 
 						       \@path, 
 						       \%foundNode, 
 						       \%foundEdge); 
-	    
-            if (!$found) {
-		
-		next;
 
-	    }
+	    # we can skip to the next goid if no new nodes were added
+	    # to the graph
+
+	    next if (!$found);
 
 	    $i++;
+
+	    # now add the genes that are annotated to this node
 
 	    if ($self->{GENE_NAME_HASH_REF_FOR_GOID} &&
 		$self->{GENE_NAME_HASH_REF_FOR_GOID}->{$goid}) {
@@ -688,9 +722,10 @@ sub _createGraph {
 
 		$loci =~ s/:/ /g;
 
-		$loci = "$i:".$loci;
-
-		$self->_addNode($loci);
+		$self->_addNode($loci,
+				fillcolor => 'grey65',
+				color     => 'grey65',
+				fontcolor => 'blue');
 
 		$self->_addEdge($goid, $loci);
 
@@ -746,7 +781,7 @@ sub _addChildOfTheNodeToGraph {
 # Usage   : $self->_addChildOfTheNodeToGraph($node, 
 #                                            $foundNodeHashRef,
 #                                            $foundEdgeHashRef);
-#           automatically called by _createGraph()
+#           
 # Function: To add each unique descendant of the given node to the 
 #           graph tree.
 # Returns : void
@@ -754,6 +789,9 @@ sub _addChildOfTheNodeToGraph {
 # =cut
 #
 #########################################################################
+
+# This is only called when we are dealing with a 'down' tree.  It is
+# not called when dealing with GO::TermFinder output
 
     my ($self, $node, $foundNodeHashRef, $foundEdgeHashRef,
 	$generation) = @_;
@@ -814,7 +852,7 @@ sub _addAncestorPathToGraph {
 #                                          $ancestorPathArrayRef, 
 #                                          $foundNodeHashRef,
 #                                          $foundEdgeHashRef);
-#           automatically called by _createGraph()
+#           
 # Function: To add each unique ancestor of the given node to the 
 #           graph tree.
 # Returns : void
@@ -823,21 +861,34 @@ sub _addAncestorPathToGraph {
 #
 #########################################################################
 
+# This is only called when we are dealing with an 'up' tree, or when
+# dealing with GO::TermFinder output
+
     my ($self, $childNode, $ancestorPathArrayRef, 
 	$foundNodeHashRef, $foundEdgeHashRef) = @_; 
 
     my $found;
 
+    # go through each path back to the root
+
     foreach my $ancestorNodeArrayRef (@$ancestorPathArrayRef) {
 	
-	
+	# add the child node to the path, so it gets included too
+		
 	push(@$ancestorNodeArrayRef, $childNode);
 
+	# reverse the order, so that we have the child node first, and
+	# the root last
+
 	@$ancestorNodeArrayRef = reverse(@$ancestorNodeArrayRef);
+
+	# now go through the path
 
 	for (my $i = 0; $i < @$ancestorNodeArrayRef; $i++) {
 
 	    my ($goid1, $goid2);
+
+	    # get the goid for the current node, and store it's term
 
 	    if (defined $$ancestorNodeArrayRef[$i]) {
 
@@ -847,6 +898,10 @@ sub _addAncestorPathToGraph {
 		        = $$ancestorNodeArrayRef[$i]->term;
 
 	    }
+
+	    # get the goid for the next node (the current node's
+	    # parent), and store it's term too
+
 	    if (defined $$ancestorNodeArrayRef[$i+1]) {
 
 		$goid2 = $$ancestorNodeArrayRef[$i+1]->goid;
@@ -856,18 +911,29 @@ sub _addAncestorPathToGraph {
 		
 	    }
     
+	    # if the current node isn't already on the graph, add it
+
 	    if ($goid1 && !$$foundNodeHashRef{$goid1}) {
 
-		$self->_addNode($goid1);
+		$self->_addNode($goid1,
+				fillcolor => $self->_colorForNode($goid1),
+				color     => $self->_colorForNode($goid1));
+
+		# record that we've seen it
 
 		$$foundNodeHashRef{$goid1}++;
 
 	    }
 
+	    # if we have a parent, and we haven't yet recorded an edge
+	    # between the child and parent, let's add that
+
 	    if ($goid1 && $goid2 && 
 		!$$foundEdgeHashRef{$goid2."::".$goid1}) {
 
 		$self->_addEdge($goid2, $goid1);
+
+		# record that we've added the edge
 
 		$$foundEdgeHashRef{$goid2."::".$goid1}++;
 
@@ -875,9 +941,14 @@ sub _addAncestorPathToGraph {
 
 	}
 
+	# record that something has been added to the graph (as it's
+	# possible that we may end up finding we've added everything
+
 	$found++;
 
     }
+
+    # return whether something was added to the graph
 
     return $found;
     
@@ -905,7 +976,81 @@ sub _createAndShowImage {
 
     my ($width, $height);
 
+    # first thing we do is get the contents of the graph in text form.
+    # We will then use this text to create a gif or png image, with
+    # various boxes etc that have the coordinates as indicated by the
+    # text from the graph image.
+
+    # the actual contents of the text string will be something like:
+    
+    # digraph test {
+    #        node [label="\N", shape=box];
+    #        graph [bb="0,0,662,1012"];
+    #        node1 [label=" biological_process\nGO:GO:0008150", pos="342,986", width="1.97", height="0.50"];
+    #        node2 [label="pre-replicative\ncomplex\nformation and\n maintenance\nGO:GO:0006267", pos="162,122", width="1.69", height="1.17"];
+    #        node3 [label="DNA-dependent\n DNA replication\nGO:GO:0006261", pos="353,226", width="1.86", height="0.72"];
+    #        node4 [label=" DNA replication\nGO:GO:0006260", pos="353,306", width="1.86", height="0.50"];
+    #        node5 [label="DNA replication\nand chromosome\n cycle\nGO:GO:0000067", pos="299,394", width="1.83", height="0.94"];
+    #        node6 [label=" cell cycle\nGO:GO:0007049", pos="271,482", width="1.72", height="0.50"];
+    #        node7 [label="cell\n proliferation\nGO:GO:0008283", pos="271,586", width="1.67", height="0.72"];
+    #        node8 [label="cell growth\nand/or\n maintenance\nGO:GO:0008151", pos="271,706", width="1.61", height="0.94"];
+    #        node9 [label="cellular\nphysiological\n process\nGO:GO:0050875", pos="272,810", width="1.67", height="0.94"];
+    #        node10 [label="cellular\n process\nGO:GO:0009987", pos="272,906", width="1.69", height="0.72"];
+    #        node11 [label="physiological\n process\nGO:GO:0007582", pos="412,906", width="1.69", height="0.72"];
+    #        node12 [label=" DNA metabolism\nGO:GO:0006259", pos="422,482", width="1.97", height="0.50"];
+    #        node13 [label="nucleobase,\nnucleoside,\nnucleotide and\nnucleic acid\n metabolism\nGO:GO:0006139", pos="421,586", width="1.64", height="1.39"];
+    #        node14 [label=" metabolism\nGO:GO:0008152", pos="420,706", width="1.64", height="0.50"];
+    #        node15 [label=" 1: MCM4 MCM3 CDC6 MCM2", pos="119,26", width="3.31", height="0.50"];
+    #        node16 [label=" DNA unwinding\nGO:GO:0006268", pos="353,122", width="1.92", height="0.50"];
+    #        node17 [label=" 2: MCM4 MCM3 MCM2", pos="353,26", width="2.69", height="0.50"];
+    #        node18 [label="DNA replication\n initiation\nGO:GO:0006270", pos="534,122", width="1.78", height="0.72"];
+    #        node19 [label=" 3: MCM4 MCM3 MCM2", pos="565,26", width="2.69", height="0.50"];
+    #        node5 -> node4 [pos="e,342,324 320,360 325,351 331,341 337,332"];
+    #        node13 -> node12 [pos="e,422,500 421,536 421,527 422,517 422,509"];
+    #        node12 -> node4 [pos="e,360,324 415,464 402,433 377,369 363,333"];
+    #        node4 -> node3 [pos="e,353,252 353,288 353,280 353,271 353,262"];
+    #        node3 -> node2 [pos="e,223,155 305,200 283,187 256,173 232,160"];
+    #        node3 -> node16 [pos="e,353,140 353,200 353,184 353,165 353,149"];
+    #        node3 -> node18 [pos="e,489,148 399,200 423,186 454,168 480,153"];
+    #        node2 -> node15 [pos="e,127,44 143,80 139,70 135,61 131,52"];
+    #        node16 -> node17 [pos="e,353,44 353,104 353,90 353,69 353,53"];
+    #        node18 -> node19 [pos="e,559,44 542,96 547,82 552,66 556,53"];
+    #        node6 -> node5 [pos="e,288,428 277,464 279,457 282,447 285,438"];
+    #        node11 -> node14 [pos="e,419,724 413,880 415,842 418,773 419,734"];
+    #        node11 -> node9 [pos="e,322,844 374,880 361,871 345,860 330,850"];
+    #        node1 -> node11 [pos="e,389,932 358,968 365,959 374,949 382,940"];
+    #        node1 -> node10 [pos="e,295,932 326,968 319,959 310,949 302,940"];
+    #        node8 -> node7 [pos="e,271,612 271,672 271,656 271,638 271,621"];
+    #        node14 -> node13 [pos="e,420,636 420,688 420,677 420,661 420,647"];
+    #        node7 -> node6 [pos="e,271,500 271,560 271,544 271,525 271,509"];
+    #        node10 -> node9 [pos="e,272,844 272,880 272,872 272,863 272,854"];
+    #        node9 -> node8 [pos="e,271,740 272,776 272,768 271,758 271,749"];
+    # }
+
+    # a description of the dot language can be found at:
+    #
+    # http://www.research.att.com/~erg/graphviz/info/lang.html
+
+    if (defined $self->{MAKE_PS} && $self->{MAKE_PS}){
+
+	my $file = $self->{IMAGE_FILE};
+
+	$file =~ s/\.\w+$/\.ps/;
+
+	open (PS, ">$file") || die "Cannot create $file : $!\n";
+
+	print PS $self->graph->as_ps;
+
+	close PS;
+
+    }
+
+    # hence we can determine the size of the image, the positions and sizes
+    # of every box, and how to draw the edges between the boxes 
+
     my $graphText = $self->graph->as_text; 
+
+    # if we can get the height and width, we'll get them
 
     if ($graphText =~ /graph \[bb=\"0,0,([0-9]+),([0-9]+)\" *\]\;/) {
        
@@ -915,6 +1060,11 @@ sub _createAndShowImage {
 
     }else {
 
+	# otherwise, we simply create a png image and we're done
+
+	# this seems to be undocumented - I'm not sure under what
+	# circumstances we can't actually get the height and width
+
 	$self->graph->as_png($self->{IMAGE_DIR}."goPath.$$.png");
 
         return $self->{IMAGE_DIR}."goPath.$$.png";
@@ -922,6 +1072,8 @@ sub _createAndShowImage {
     }
 
     my @graphLine = split(/\n/, $graphText);
+
+    # add borders sizes to the height and width
 
     my $border = 25;
     
@@ -931,22 +1083,32 @@ sub _createAndShowImage {
 
     my $keyY;
 
-    if ($self->{PVALUE_HASH_REF_FOR_GOID} || 
-	!$self->{GENE_NAME_HASH_REF_FOR_GOID}) {
+    # now modify the height and width according to unclear rules....
+
+    if ($self->{PVALUE_HASH_REF_FOR_GOID} || !$self->{GENE_NAME_HASH_REF_FOR_GOID}) {
 
 	$keyY = $mapHeight;
 
+	# make the width to be at least the minimum acceptable width
+
 	if ($mapWidth < $self->{MIN_MAP_WIDTH}) { 
 
-	    $mapWidth =$self->{MIN_MAP_WIDTH}; 
+	    $mapWidth = $self->{MIN_MAP_WIDTH}; 
 
 	}
 
+	# modify the height 
+
 	if (!$self->{GENE_NAME_HASH_REF_FOR_GOID}) {
+
+	    # if there are no genes annotated to nodes, use some
+	    # complex, opaque and unclear rule to change the height
 
 	    $mapHeight += int((length($self->{MAP_NOTE})*6/($mapWidth-100))*15) + 65;
 
 	}else {
+
+	    # otherwise just add 50, the 'magic number'...
 
 	    $mapHeight += 50;
 
@@ -954,10 +1116,12 @@ sub _createAndShowImage {
 
     }
 
+    # now create a GD image of the appropriate height and width
+
     my $gd = GO::View::GD->new(width  => $mapWidth,
 			       height => $mapHeight);
 
-    $gd->im->rectangle(0, 0, $mapWidth-1, $mapHeight-1, $gd->blue);
+    # add a border, with a label and a date
 
     $self->_drawFrame($gd, $mapWidth, $mapHeight);
 
@@ -965,9 +1129,15 @@ sub _createAndShowImage {
 
     my $preLine;
 
+    # now go through each line of the output from the graph->as_text method
+
     foreach my $line (@graphLine) {
 
 	if ($line =~ /\\$/) { 
+
+	    # if it ends with a backslash (i.e. is a wrapped line), we
+	    # simply remove the trailing slash, and any leading
+	    # spaces, and remember it.
 
 	    $line =~ s/\\$//;
 
@@ -979,23 +1149,39 @@ sub _createAndShowImage {
 
 	}elsif ($preLine && $line =~ /\;$/ && $line !~ / *node[0-9]/) {
 
+	    # if we have some remembered previous line, and this line
+	    # ends in a semi-colon (which terminates the entity), and
+	    # this line does not begin the definition of a node, then
+	    # we add the previous line information to this line, and
+	    # undef the $preLine variable
+
 	    $line = $preLine.$line;
 
 	    undef $preLine;
 
 	}
 
+	# now store type of entity (nodes vs edges) in different
+	# arrays
+
 	if ($line =~ / *node[0-9]+ *\[(label=.+)\]\;$/i) {
+
+	    # it's a node
 
 	    push(@nodeLine, $1);
 
-	}elsif ($line  =~ / *node[0-9]+ *-> *node[0-9]+ \[pos=\"e,(.+)\"\]\;$/i) {
+	}elsif ($line  =~ / *node[0-9]+ *-> *node[0-9]+ \[pos=\"(.+)\"\]\;$/i) {
+
+	    # it's an edge
 
 	    push(@edgeLine, $1);
 
 	}
 
     }
+
+    # add the keys, which are either keys for the p-value colors, or a
+    # general description about GO terms and their annotations
 
     if (exists $self->{PVALUE_HASH_REF_FOR_GOID} && 
 	$height > $self->{MIN_MAP_WIDTH_FOR_ONE_LINE_KEY}) {
@@ -1010,6 +1196,7 @@ sub _createAndShowImage {
 	$self->_drawKeys($gd, $mapWidth, 5, 'isTop');
 
     }
+
     if ($self->{PVALUE_HASH_REF_FOR_GOID} || 
 	!$self->{GENE_NAME_HASH_REF_FOR_GOID}) {
 
@@ -1017,18 +1204,25 @@ sub _createAndShowImage {
 
     }
 
-    #### draw edges first, then draw nodes
+    # now draw the actual edges and nodes
+
+    # do the edges first
+    
     foreach my $line (@edgeLine) {
 
 	$self->_drawEdge($gd, $height, $border, $line);
 
     }
 
+    # and now the nodes
+
     foreach my $line (@nodeLine) {
 
 	$self->_drawNode($gd, $height, $border, $line);
 
     }
+
+    # now output the image to a file
 
     my $imageFile = $self->{IMAGE_FILE}; 
     my $imageUrl  = $self->{IMAGE_URL};
@@ -1090,217 +1284,288 @@ sub _drawNode {
 
     my ($self, $gd, $height, $border, $line) = @_;
 
-    if ($line =~ /^label=\"([^\"]*)\", *pos=\"([0-9]+),([0-9]+)\", *width=\"([^\"]+)\", *height=\"([^\"]+)\"/i) {
+    # let's let's extract the information from the line, e.g. which may look like:
+    #
+    #        label="MCM4 MCM3 MCM2", pos="565,26", width="2.69", height="0.50"
+    #
+    # or:
+    #
+    #        label=MET28, color=grey65, fillcolor=grey65, fontcolor=blue, pos="735,561", width="0.92", height="0.50"
+    #
+    # or:
+    #
+    #        label=" DNA unwinding\nGO:GO:0006268", pos="353,122", width="1.92", height="0.50"
+    #
+    # depending on whether it's genes annotating a GO node, or a box
+    # representing a GO Node itself
 
-	my $label = $1;
+    # get the label - may or may not be surrounded in quotes
 
-	my @label = split(/\\n/, $label);
+    my $label;
 
-	my $boxW = $4*60;
+    if ($line =~ /label=\"([^\"]*)\"/){
+    
+	$label = $1;
 
-	my $boxH = $5*60;
+    }elsif ($line =~ /label=(.+?), /){
+
+	$label = $1;
 	
-	$boxH -= 4*(@label-1);
+    }
 
-	if ($self->{PVALUE_HASH_REF_FOR_GOID}) {
+    my @label = split(/\\n/, $label);
 
-	    $boxH -= 10;
+    # get the width and height, and convert to number of pixels - I
+    # don't know where the use of the value '60' comes from.  The documentation for graphviz says that
+    # the default scale is actually 72 pixels per inch...
 
-	}
+    $line =~ /width=\"([^\"]+)\"/;
+
+    my $boxW = $1 * 60;
+
+    $line =~ /height=\"([^\"]+)\"/;
+
+    my $boxH = $1 * 60;
+
+    # remove some arbitrary amount based on the label - presumably
+    # this is because we're removing the GO id from the label?
+
+    $boxH -= 4*(@label-1);
+
+    # and for some reason subtract an extra 10 if we have a
+    # p-value for it?
+
+    if ($self->{PVALUE_HASH_REF_FOR_GOID}) {
+
+	$boxH -= 10;
+
+    }
 	
-	if (!$self->{MOVE_Y}) { 
+    if (!$self->{MOVE_Y}) { 
 
-	    $self->{MOVE_Y} = 0;
-
-	}
-
-	my $x1 = $2*$self->{WIDTH_DISPLAY_RATIO}-$boxW/2 + $border;
-
-	my $y1 = $height - $3*$self->{HEIGHT_DISPLAY_RATIO} - $boxH/2 + $border + $self->{MOVE_Y};
-		
-	my $x2 = $x1 + $boxW;
-
-	my $y2 = $y1 + $boxH;
-
-	my $goid;
-
-	if ($label =~ /(GO:[0-9]+)$/) {
-
-	    $goid = $1;
-
-	}
-
-	if (!$goid) {
-
-	    $boxH = 9*(@label) + 4;
-
-	}
-
-	my $geneNum;
-	my $totalGeneNum;
-	my $barColor;
-	my $outline;
-	my $linkUrl;
-
-	if ($self->{PVALUE_HASH_REF_FOR_GOID} && $goid) {
-
-	    $barColor = $self->_getBoxColor($gd, $goid);
-
-	    if (!$self->{CREATE_IMAGE_ONLY}) {
-
-		$linkUrl = $self->{GO_URL};
-
-		$linkUrl =~ s/$kReplacementText/$goid/ if $linkUrl;
-
-	    }
-
-	}elsif ($goid) {
-
-	    my $node = $self->_ontologyProvider->nodeFromId($goid);
-	    
-	    if ($node && $node->childNodes) {
-		
-		$barColor = $gd->lightBlue;
-		
-		if (!$self->{CREATE_IMAGE_ONLY}) {
-
-		    $linkUrl = $self->{GO_URL};
-		    
-		    $linkUrl =~ s/$kReplacementText/$goid/ if $linkUrl;
-		    
-		}
-		
-	    }else {
-		
-		$barColor = $gd->grey;
-		
-	    }
-	    
-        }else { 
-
-	    $barColor = $gd->grey;
-
-	}
-
-
-	my $onInfoText;
-
-	if (( $self->{TOP_GOID} && $goid && $goid eq $self->{TOP_GOID}) ||
-	    (!$self->{TOP_GOID} && $goid && $goid eq $self->_goid)) {
-
-	    $self->_drawUpArrow($gd, $goid, ($x1+$x2)/2-7, 
-				($x1+$x2)/2+7, $y1-15, 10, 
-				$linkUrl);
-
-	}
-	
-	#### draw box
-
-	$gd->drawBar(barColor   => $barColor,
-		     numX1      => $x1,
-		     numX2      => $x2,
-		     numY       => $y1,
-		     linkUrl    => $linkUrl,
-		     barHeight  => $boxH,
-		     outline    => $outline,
-		     onInfoText => $onInfoText);
-	
-	       
-	#### draw go_term 
-
-	my $i = 0;
-
-	foreach my $label (@label) {
-
-	    next if (!$label || $label =~ /^GO:/i);
-
-	    if (!$goid) {
-
-		$label =~ s/[0-9]+://i;
-
-	    }
-
-	    my $nameColor = $gd->black;
-
-	    if (!$goid) {
-
-		$nameColor = $gd->blue;
-
-	    }elsif ($goid eq $self->_goid) {
-
-		$nameColor = $gd->red;
-
-	    }
-
-	    my $startPixel = int(($boxW - length($label)*6)/2);
-	    my $numX1 = $x1 + $startPixel;
-	    my $numY1 = $y1 + $i*10;
-
-	    if ($goid) {
-
-		$gd->drawName(name      => $label,
-			      nameColor => $nameColor,  
-			      numX1     => $numX1,
-			      numY      => $numY1);
-
-	    }else {
-
-		# $numX1 -= 10;
-
-		my @gene = split(' ', $label);
-
-		foreach my $gene(@gene) {
-		    
-		    my $linkUrl;
-
-		    if (!$self->{CREATE_IMAGE_ONLY} && $self->{GENE_URL}) {
-
-			$linkUrl = $self->{GENE_URL};
-			
-			$linkUrl =~ s/$kReplacementText/$gene/;
-
-		    }
-		    $gd->drawName(name=>$gene,
-				  nameColor=>$nameColor,
-				  linkUrl=>$linkUrl,
-				  numX1=>$numX1,
-				  numY=>$numY1);
-
-		    $numX1 += (length($gene)+1)*6;
-
-		}
-
-	    }
-
-	    $i++;
-
-	}
-
-	if ($geneNum) {
-
-	    my $label = $geneNum." gene";
-
-	    if ($totalGeneNum != 1) {
-
-		$label .= "s";
-
-	    }
-
-	    my $startPixel = int(($boxW - length($label)*6)/2);
-
-	    my $numX1 = $x1 + $startPixel+2;
-
-	    my $numY1 = $y1 + $i*10+2;
-
-	    $gd->drawName(name      => $label,
-			  nameColor => $gd->maroon,  
-			  numX1     => $numX1,
-			  numY      => $numY1);
-
-	}
+	$self->{MOVE_Y} = 0;
 
     }
 
+    # now get the coordinates of the center of box for the node, and
+    # use that to work out the coordinate of the bounding box for the
+    # node.
+
+    $line =~ /pos=\"([0-9]+),([0-9]+)\"/;
+
+    my $x1 = $1 * $self->{WIDTH_DISPLAY_RATIO}-$boxW/2 + $border;
+    
+    my $y1 = $height - $2 * $self->{HEIGHT_DISPLAY_RATIO} - $boxH/2 + $border + $self->{MOVE_Y};
+
+    my $x2 = $x1 + $boxW;
+
+    my $y2 = $y1 + $boxH;
+
+    my $goid;
+
+    if ($label =~ /(GO:[0-9]+)$/) {
+	
+	$goid = $1;
+	
+    }
+    
+    if (!$goid) {
+	
+	$boxH = 9*(@label) + 4;
+	
+    }
+    
+    my $geneNum;
+    my $totalGeneNum;
+    my $barColor;
+    my $outline;
+    my $linkUrl;
+    
+    # now work out the color for the box, and work out URL links
+    # for the nodes
+    
+    if ($self->{PVALUE_HASH_REF_FOR_GOID} && $goid) {
+	
+	# we must be dealing with GO::TermFinder output for a goid
+	
+	$barColor = $self->_getBoxColor($gd, $goid);
+	
+	if (!$self->{CREATE_IMAGE_ONLY}) {
+	    
+	    $linkUrl = $self->{GO_URL};
+	    
+	    $linkUrl =~ s/$kReplacementText/$goid/ if $linkUrl;
+	    
+	}
+	
+    }elsif ($goid) {
+	
+	# non GO::TermFinder output for a GOID
+	
+	my $node = $self->_ontologyProvider->nodeFromId($goid);
+	
+	if ($node && $node->childNodes) {
+	    
+	    $barColor = $gd->lightBlue;
+	    
+	    if (!$self->{CREATE_IMAGE_ONLY}) {
+		
+		$linkUrl = $self->{GO_URL};
+		
+		$linkUrl =~ s/$kReplacementText/$goid/ if $linkUrl;
+		
+	    }
+	    
+	}else {
+	    
+	    # the box isn't representing a GOID, e.g. annotating genes
+	    
+	    $barColor = $gd->grey;
+	    
+	}
+	
+    }else { 
+	
+	$barColor = $gd->grey;
+	
+    }
+    
+    
+    my $onInfoText;
+    
+    if (( $self->{TOP_GOID} && $goid && $goid eq $self->{TOP_GOID}) ||
+	(!$self->{TOP_GOID} && $goid && $goid eq $self->_goid)) {
+	
+	$self->_drawUpArrow($gd, $goid, ($x1+$x2)/2-7, 
+			    ($x1+$x2)/2+7, $y1-15, 10, 
+			    $linkUrl);
+	
+    }
+    
+    # now draw the box itself
+    
+    $gd->drawBar(barColor   => $barColor,
+		 numX1      => $x1,
+		 numX2      => $x2,
+		 numY       => $y1,
+		 linkUrl    => $linkUrl,
+		 barHeight  => $boxH,
+		 outline    => $outline,
+		 onInfoText => $onInfoText);
+	
+    
+    # and now add the label to the box, one line at a time
+    
+    my $i = 0;
+    
+    foreach my $label (@label) {
+	
+	# skip if it's a GOID or is blank
+	
+	next if (!$label || $label =~ /^GO:/i);
+	
+	if (!$goid) {
+	    
+	    $label =~ s/[0-9]+://i;
+	    
+	}
+	
+	my $nameColor = $gd->black;
+	
+	if (!$goid) {
+	    
+	    $nameColor = $gd->blue;
+	    
+	}elsif ($goid eq $self->_goid) {
+	    
+	    $nameColor = $gd->red;
+	    
+	}
+	
+	my $startPixel = int(($boxW - length($label)*6)/2);
+	my $numX1 = $x1 + $startPixel;
+	my $numY1 = $y1 + $i*10;
+	
+	if ($goid) {
+	    
+	    # the box we're labeling is for a goid
+	    
+	    $gd->drawName(name      => $label,
+			  nameColor => $nameColor,  
+			  numX1     => $numX1,
+			  numY      => $numY1);
+	    
+	}else {
+	    
+	    # $numX1 -= 10;
+	    
+	    # we're adding in a list of genes
+	    
+	    my @gene = split(' ', $label);
+	    
+	    # add in each one - the image map being generated by
+	    # the GO::View::GD object will have the relevant
+	    # information added to support linking genes to it.
+
+	    # go through each gene
+	    
+	    foreach my $gene(@gene) {
+		
+		my $linkUrl;
+		
+		if (!$self->{CREATE_IMAGE_ONLY} && $self->{GENE_URL}) {
+		    
+		    $linkUrl = $self->{GENE_URL};
+		    
+		    $linkUrl =~ s/$kReplacementText/$gene/;
+		    
+		}
+		
+		# add the gene name
+		
+		$gd->drawName(name      => $gene,
+			      nameColor => $nameColor,
+			      linkUrl   => $linkUrl,
+			      numX1     => $numX1,
+			      numY      => $numY1);
+		
+		$numX1 += (length($gene)+1)*6;
+		
+	    }
+	    
+	}
+	
+	$i++;
+	
+    }
+    
+    # I think this is supposed to say something about how many
+    # genes are annotated to a given node, but am not sure that
+    # $geneNum ever gets defined...
+    
+    if ($geneNum) {
+	
+	my $label = $geneNum." gene";
+	
+	if ($totalGeneNum != 1) {
+	    
+	    $label .= "s";
+	    
+	}
+	
+	my $startPixel = int(($boxW - length($label)*6)/2);
+	
+	my $numX1 = $x1 + $startPixel+2;
+	
+	my $numY1 = $y1 + $i*10+2;
+	
+	$gd->drawName(name      => $label,
+		      nameColor => $gd->maroon,  
+		      numX1     => $numX1,
+		      numY      => $numY1);
+	
+    }
+    
 }
 
 ######################################################################
@@ -1321,15 +1586,27 @@ sub _drawEdge {
 
     my ($self, $gd, $height, $border, $line) = @_;
 
-    my @point = split(/ /, $line);
-    
-    shift @point;
+    # $line will contain something like:
+    #
+    # 342,324 320,360 325,351 331,341 337,332
+    #
+    # where each pair of coordinates defines a point on the line.
+    # Thus to draw the line, we simply connect the points.
 
+    my @point = split(/ /, $line);
+
+    # get rid of everything prior to the first point
+    
     my ($preX, $preY);
+
+    # now go through each point
 
     foreach my $point (@point) {
 
 	my ($x, $y) = split(/\,/, $point);
+
+	# modify the x coorfinate to take account of the border and
+	# scaling factor
 
 	$x *= $self->{WIDTH_DISPLAY_RATIO};
 
@@ -1337,14 +1614,22 @@ sub _drawEdge {
 
 	if (!defined $self->{MOVE_Y}) { $self->{MOVE_Y} = 0; }
 
+	# modify the y coordinate based on the scaling factor, the border
+	# the 'MOVE_Y' (whatever that is) and an arbitrary 5
+
 	$y = $height - $y*$self->{HEIGHT_DISPLAY_RATIO} + $border +
 	     $self->{MOVE_Y} + 5;
+
+	# now if we have a prior x and y coordinate, we can draw a
+	# line from it to the current point
 
 	if ($preX && $preY) {
 
 	    $gd->im->line($x, $y, $preX, $preY, $gd->black);
 
 	}
+
+	# remember these coordinates for the next time through the loop
 
 	$preX = $x;
 
@@ -1598,7 +1883,22 @@ sub _createGraphObject {
 
     my ($self) = @_;
 
-    $self->{GRAPH} = GraphViz->new(node => { shape => 'box' });
+    my %args;
+
+    if (defined $self->{MAKE_PS} && $self->{MAKE_PS}){
+
+	%args = (width => 7.5,
+		 height => 10,
+		 pagewidth => 8.5, 
+		 pageheight => 11.5);
+
+    }
+
+    $self->{GRAPH} = GraphViz->new(node => { shape => 'box',
+					     style => 'filled' },
+				   edge => { arrowhead => 'none' },
+
+				   %args);
 
 }
 
@@ -1618,55 +1918,69 @@ sub _addNode {
 #
 #########################################################################
 
-    my ($self, $goid) = @_;
+    my ($self, $goid, %args) = @_;
+    
+    my $label;
 
     if ($goid !~ /^GO:[0-9]+$/) {
 
-	my $label = $self->_processLabel($goid, 30);
+	# if the label is not a goid (i.e. it's a list of genes that
+	# annotate a term), we'll process it, so that there are no
+	# lines longer than 30 characters
 
-	$self->graph->add_node($goid,
-			       label => $label);
+	$label = $self->_processLabel($goid, 30);
 
-	return;
+    }else{
 
-    }
-
-    my $label = $self->{TERM_HASH_REF_FOR_GOID}->{$goid};
-
-    if (!$label) {
-
-	my $node = $self->_ontologyProvider->nodeFromId($goid);
-
-	$label = $node->term;
-
-    }
-
-    my $stdGoid;
-
-    if (!$self->{PVALUE_HASH_REF_FOR_GOID}) {
-
-	$stdGoid = $self->_formatGoid($goid);
-
-    }else {
-
-	$stdGoid = "GO:".$goid;
-
-    }
-
-    if ($label) {
-
-	$label = $self->_processLabel($label)."\n".$stdGoid;
-
-    }else { 
-
-	$label = $stdGoid;
+	# otherwise, we'll get the term for the goid
+	
+	$label = $self->{TERM_HASH_REF_FOR_GOID}->{$goid};
+	
+	if (!$label) {
+	    
+	    # if we didn't get a term, we'll go back to the
+	    # ontologyProvider to get one
+	    
+	    my $node = $self->_ontologyProvider->nodeFromId($goid);
+	    
+	    $label = $node->term;
+	    
+	}
+	
+	# reformat the goid
+	
+	my $stdGoid;
+	
+	if (!$self->{PVALUE_HASH_REF_FOR_GOID}) {
+	    
+	    $stdGoid = $self->_formatGoid($goid);
+	    
+	}else {
+	    
+	    $stdGoid = $goid;
+	    
+	}
+	
+	# append the goid to the processed label
+	
+	if ($label) {
+	    
+	    $label = $self->_processLabel($label)."\n".$stdGoid;
+	    
+	}else { 
+	    
+	    $label = $stdGoid;
+	    
+	}
 
     }
    
+    # now add the node to the graph, with the appropriate label
+    
     $self->graph->add_node($goid,
-			   label => $label);
+			   label => $label,
+			   %args);
   
-    return;
 
 }
 
@@ -1986,48 +2300,71 @@ sub _initPvaluesGeneNamesDescendantGoids {
         
 	# skip if we've exceeded the maxTopNodeToShow value
 	#
-	# NB, we do next, rather than last, so that the mapping of the
-	# goid to p-value still gets recorded
+	# NB, we do 'next', rather than 'last', so that the mapping of the
+	# goid to p-value still gets recorded for any subsequent nodes, which
+	# ensures that their colors will be correct
 
 	next if ($count >= $maxTopNodeToShow);
 
-	# grab a GO::Node object for this hypothesis
+	# grab the GO::Node object for this hypothesis
 
 	my $ancestorNode = $pvalue->{NODE};
 
-	# now go through the list of genes directly annotated to this node
+	# now we go through the list of genes directly annotated to
+	# this node and get every goid to which any of those genes are
+	# annotated - thus we'll build up a list of all nodes to which
+	# the genes are annotated.  We'll also record which nodes are
+	# directly annotated by the genes
 
 	foreach my $databaseId (keys %{$pvalue->{ANNOTATED_GENES}}) {
 
-	    my $gene = $pvalue->{ANNOTATED_GENES}->{$databaseId};
-
 	    # get every goid that the gene maps to.
 
-	    my $goidArrayRef = $self->_annotationProvider->goIdsByName(name   => $gene,
-								       aspect => $self->{ASPECT});
+	    my $goidArrayRef = $self->_annotationProvider->goIdsByDatabaseId(databaseId => $databaseId,
+									     aspect     => $self->{ASPECT});
+
+	    # get the name of the gene, as it was passed to TermFinder
+
+	    my $gene = $pvalue->{ANNOTATED_GENES}->{$databaseId};
 	
-	    # go through each node
+	    # now go through each goid that the gene was annotated to
 
 	    foreach my $goid (@$goidArrayRef) {
 
+		# get a GO::Node object for it
+
 		my $node = $self->_ontologyProvider->nodeFromId($goid);
 
-		# the following check seems superfluous...
-	
-		if (!$node) { next; }
+		# the following check is probably superfluous, but
+		# there may be cases where a node in the annotation
+		# provider is not in the ontology provider, so we just
+		# ignore them
 
-		# skip if the current node is not an ancestor of the
-		# GO::Node which was a tested hypothesis - however, I
-		# don't understand the logic of the other part of the
-		# && statement ($ancestorNode->goid ne $goid)....
+		next if (!$node);
 
-		next if ($ancestorNode->goid ne $goid && !$ancestorNode->isAnAncestorOf($node));
+		# We only want to keep information about genes
+		# directly annotated to this node if it is a
+		# descendant of the '$ancestorNode', which we know
+		# passes the p-value cut-off, or if it is the node
+		# itself.  In this a way of we only record nodes to
+		# which our genes of interest are annotated if they
+		# have contributed to the count associated with the
+		# significant '$ancestorNode', and thus prune the
+		# tree, as we don't show all nodes to which any of the
+		# genes are annotated.
 
-		# now record some information about the goid and gene
+		next unless ($node->isADescendantOf($ancestorNode) || $goid eq $ancestorNode->goid);
 
-		if (!$foundGoidGene{$goid."::".$gene}) {  
+		# now record some information about the this goid and the gene
+
+		if (!exists $foundGoidGene{$goid."::".$gene}) {  
+
+		    # record the genes in the list that are annotated
+		    # to this node
 
 		    $loci4goid{$goid} .= ":".$gene;
+
+		    # and remember that we've recorded this annotation
 
 		    $foundGoidGene{$goid."::".$gene}++;
 
@@ -2035,7 +2372,7 @@ sub _initPvaluesGeneNamesDescendantGoids {
 
 		# skip if we've already seen the goid
 
-		if ($foundGoid{$goid}) { next; }
+		next if ($foundGoid{$goid});
 
 		# record the goid as directly annotated by a gene of interest
 
@@ -2049,7 +2386,7 @@ sub _initPvaluesGeneNamesDescendantGoids {
 
 	}
 
-	$count++;
+	$count++; # keep a count of the number of nodes that exceed the cutoff
    
     }
 
@@ -2126,7 +2463,11 @@ sub _initVariablesFromConfigFile {
 
 	    $ENV{LD_LIBRARY_PATH} .= ":".$value;
 
-	}
+	}elsif ($name =~ /^makePs/i){
+
+	     $self->{MAKE_PS} = $value;
+
+	 }
     
     }
 
@@ -2211,6 +2552,50 @@ sub _color4pvalue {
 }
 
 ################################################################
+sub _colorForNode{
+################################################################
+
+    my ($self, $goid) = @_;
+    
+    if ($self->{PVALUE_HASH_REF_FOR_GOID} && 
+	$self->{PVALUE_HASH_REF_FOR_GOID}->{$goid}) {
+
+	my $pvalue = $self->{PVALUE_HASH_REF_FOR_GOID}->{$goid};
+
+	if ($pvalue <= 1e-10) {
+	    
+	    return 'orange'; 
+	    
+	}elsif ($pvalue <= 1e-8) {
+	    
+	    return 'yellow'; 
+	    
+	}elsif ($pvalue <= 1e-6) {
+	    
+	    return 'green';
+	    
+	}elsif ($pvalue <= 1e-4) {
+	    
+	    return 'cyan';
+	    
+	}elsif ($pvalue <= 1e-2) {
+	    
+	    return 'royalblue1';
+	    
+	}else {
+	    
+	    return 'burlywood2';
+	    
+	}
+
+	
+    }
+    
+    return 'burlywood2';
+    
+}
+
+################################################################
 sub _processLabel {
 ################################################################
 #
@@ -2236,38 +2621,50 @@ sub _processLabel {
 
     }
 
-    my @word = split(/ /, $label);
+    # separate the label into it's constituent words
 
-    undef $label;
+    my @words = split(/ /, $label);
 
-    my $line;
+    my (@lines, $line);
 
-    foreach my $word (@word) {
+    # go through each word
 
-	if ( ($line && length($line) >= $maxLabelLen) ||
-	     ($line && 
-	      (length($line)+length($word) > $maxLabelLen)) ) {
+    foreach my $word (@words) {
+
+	# if the line we're building up is too long already, or it'll
+	# be too long when we add the next word, add it to the array
+	# of lines, and start a new one
+
+	if ((defined $line && length($line) >= $maxLabelLen) ||
+	    (defined $line && (length($line)+length($word) > $maxLabelLen)) ) {
+
+	    # get rid of leading space
 
 	    $line =~ s/^ +//;
 
-	    $label .= "\n".$line;
+	    push (@lines, $line);
 
 	    undef $line;
 
 	}
 
-	$line .= " ".$word;    
+	# add the current word onto the line
 
-    }
-    if ($line) {
-
-	$label .= "\n".$line;
+	$line .= " ".$word;
 
     }
 
-    $label =~ s/^\n//;
+    # add in a final line if there is one
 
-    return $label;
+    if (defined $line){
+
+	$line =~ s/^ +//;
+
+	push (@lines, $line);
+
+    }
+
+    return join("\n", @lines);
 
 }
 

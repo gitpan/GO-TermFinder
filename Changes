@@ -1,5 +1,24 @@
 Revision history for GO-TermFinder group of modules.
 
+0.64 Sun Aug 15 23:30:32 2004
+
+	- GO::View
+
+	Added the ability to create postscript output from
+	GO::View - simply change the makePs attribute in the
+	GoView.conf file to a '1', and if you run batchGoView.pl, you
+	should get a postcript file as well as png or gif images.  The
+	Postscript is not perfect, because the GraphViz interface
+	doesn't seem to allow me to modify the page size (even though
+	it says I should be able to), so I have restricted the size of the
+	image to try and get it to fit on one page.  Suggestions as to how to
+	make the postscript feature more robust would be appreciated.
+
+	Added in copious comments to GO::View, so that most of it can
+	actually be understood my regular programmers - performed some
+	cleanups or unnecessary or obfuscated code in the process.
+	Significant refactoring of this module is next on the agenda.
+
 0.63 Wed Aug 11 11:16:23 2004
 
 	- GO::View

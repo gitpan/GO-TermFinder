@@ -386,14 +386,14 @@ html page.  The text for that is currently printed to STDOUT.
 
 Usage:
 
-  $gd->drawBar(barColor=>$gd->blue,
-	       numX1=>$X1,
-	       numX2=>$X2,
-	       numY=>$Y,
-	       linkUrl=>$linkUrl,
-	       barHeight=>$barHeight,
-	       outline=>1,
-	       arrow=>'up');
+  $gd->drawBar(barColor  => $gd->blue,
+	       numX1     => $X1,
+	       numX2     => $X2,
+	       numY      => $Y,
+	       linkUrl   => $linkUrl,
+	       barHeight => $barHeight,
+	       outline   => 1,
+	       arrow     => 'up');
 
 Required Arguments:
 
@@ -423,7 +423,7 @@ arrowHeight  : The height of the arrowhead
     my $barColor = $args{'barColor'} || $self->_handleMissingArgument('barColor'); 
     my $numX1    = $args{'numX1'}    || $self->_handleMissingArgument('numX1');
     my $numX2    = $args{'numX2'}    || $self->_handleMissingArgument('numX2');
-    my $numY     = $args{'numY'}     || $self->__handleMissingArgument('numY'); 
+    my $numY     = $args{'numY'}     || $self->_handleMissingArgument('numY'); 
 
     my $linkUrl      = $args{'linkUrl'};
     my $strand       = $args{'strand'};
@@ -709,12 +709,16 @@ sub _drawNameWithLink {
     $self->im->string(gdSmallFont, $nX1, $nY1, $name, $nameColor);
 
     if ($linkUrl) {
+
 	$nX1 = int($nX1);
 	$nX2 = int($nX2);
 	$nY1 = int($nY1);
 	$nY2 = int($nY2);
+
 	$self->_appendToMap("<AREA SHAPE=\"RECT\" COORDS=\"$nX1,$nY1,$nX2,$nY2\" HREF=\"$linkUrl\">\n");
+
     }
+
 }
 
 
