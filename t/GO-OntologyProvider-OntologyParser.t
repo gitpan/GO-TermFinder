@@ -5,7 +5,7 @@ BEGIN { plan tests => 17 };
 # Author     : Gavin Sherlock
 # Date Begun : March 9th 2002
 
-# $Id$
+# $Id: GO-OntologyProvider-OntologyParser.t,v 1.1 2003/10/16 17:23:35 sherlock Exp $
 
 # This file forms a set of tests for the
 # GO::AnnotationProvider::AnnotationParser class

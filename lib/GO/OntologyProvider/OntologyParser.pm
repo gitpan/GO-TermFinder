@@ -5,7 +5,7 @@ package GO::OntologyProvider::OntologyParser;
 # Date Begun : Summer 2001
 # Rewritten  : September 29th 2002
 
-# $Id: OntologyParser.pm,v 1.11 2003/03/03 16:47:10 sherlock Exp $
+# $Id: OntologyParser.pm,v 1.12 2003/10/17 01:56:17 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -382,9 +382,15 @@ sub __getNumSpaces{
 
     my ($self, $line) = @_;
 
-    $line =~ /^( +)/; # capture leading spaces
+    if ($line =~ /^( +)/){ # capture leading spaces
 
-    return (length($1));
+	return (length($1));
+
+    }else{ # it must have been the top level node
+
+	return 0;
+
+    }
 
 }
 
@@ -701,7 +707,13 @@ it corresponds to.
 
 Usage :
 
-    $self->nodeFromId($goid);
+    my $node = $ontologyParser->nodeFromId($goid);
+
+If the GOID does not correspond to a GO node, then undef will be
+returned.  Note if you try to call any methods on an undef, you will
+get a fatal runtime error, so if you can't guarantee all GOIDs that
+you supply are good, you should check that the return value from this
+method is defined.
 
 =head2 serializeToDisk
 

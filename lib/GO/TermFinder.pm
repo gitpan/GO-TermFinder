@@ -4,7 +4,7 @@ package GO::TermFinder;
 # Author      : Gavin Sherlock
 # Date Begun  : December 31st 2002
 
-# $Id: TermFinder.pm,v 1.17 2003/04/15 00:39:33 sherlock Exp $
+# $Id: TermFinder.pm,v 1.23 2003/10/17 15:57:14 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -38,11 +38,19 @@ GO::TermFinder
 
 =head1 Changes
 
-0.1 : Initial release
+0.1  : Initial release
 
-0.2 : Added in code such that the client can determine which genes in
-      the provided to findTerms were annotated to the nodes that were
-      treated as hypotheses.
+0.2  : Added in code such that the client can determine which genes in
+       the provided to findTerms were annotated to the nodes that were
+       treated as hypotheses.
+
+0.21 : Fix for situation when a gene identifier wasn't recognized,
+       but wasn't handled properly - thanks to Shuai Weng for bring
+       it to my attention.
+
+       Cleaned up the code that calculates the p-values to make it
+       easier to write a test-suite, which will allow me to make other
+       desired changes with more confidence.
 
 =head1 DESCRIPTION
 
@@ -95,6 +103,12 @@ name (current implementation); use all databaseIds for the ambiguous
 name; decide on a case by case basis (potentially useful if running on
 command line)).
 
+Would probably be a good idea to use the Math::BigInt module to deal
+with the factorials and nChooser calculations, so that they are more
+accurate, rather than the log versions that I currently have.  The
+latest version of Math::BigInt has a C implementation underneath, that
+may even speed it up a little.
+
 =cut
 
 use strict;
@@ -105,8 +119,8 @@ use vars qw ($PACKAGE $VERSION);
 
 use GO::Node;
 
-$VERSION = 0.2;
-$PACKAGE = 'GO:TermFinder';
+$VERSION = '0.21';
+$PACKAGE = 'GO::TermFinder';
 
 # class variables
 
@@ -132,6 +146,8 @@ my %kAllowedMethods = ('hypergeometric' => undef,
 
 my $kUnannotatedNode = GO::Node->new(goid => "GO:XXXXXXX",
 				     term => "unannotated");
+
+my $kFakeIdPrefix    = "NO_DETERMINED_DATABASE_ID_";
 
 #####################################################################
 sub new{
@@ -207,7 +223,7 @@ sub __init{
     if ($totalNumAnnotatedGenes > $self->__totalNumGenes){
 
 	print "The annotation provider indicates that there are more genes than the client indicated.\n";
-	print "The annotaion provider indicates there are $totalNumAnnotatedGenes, while the client indicated only ", $self->__totalNumGenes, ".\n";
+	print "The annotation provider indicates there are $totalNumAnnotatedGenes, while the client indicated only ", $self->__totalNumGenes, ".\n";
 	print "Thus assuming the total number of genes is that indicated by the annotation provider.\n";
 
 	$self->{$kArgs}{totalNumGenes} = $totalNumAnnotatedGenes;
@@ -560,9 +576,10 @@ sub __determineDatabaseIdsFromGenes{
 	    
 	}else{
 
-	    # note, if the gene has no annotation, then we will put an
-	    # undef into this array of databaseIds - we have to make
-	    # sure we deal with this later when getting annotations.	    
+	    # note, if the gene has no annotation, then we will want
+	    # to create a fake databaseId, that we can easily
+	    # recognize, and will have to make sure that we deal with
+	    # this later when getting annotations.
 
 	    $databaseId = $self->__annotationProvider->databaseIdByName($gene);
 
@@ -571,11 +588,26 @@ sub __determineDatabaseIdsFromGenes{
 	    # genes that do not return a databaseId.  If this is the
 	    # case, we will warn them.
 
-	    if (!defined $databaseId && $self->__totalNumAnnotatedGenes == $self->__totalNumGenes){
+	    if (!defined $databaseId){
 
-		print "\nThe name '$gene' did not correspond to an entry from the AnnotationProvider.\n";
-		print "However, the client has indicated that all genes have annotation.\n";
-		print "You should probably check that '$gene' is a real name.\n\n";
+		# we'll print a warning if they say that the
+		# annotation file has all the genes, because really,
+		# we shouldn't have anything that doesn't give a
+		# databaseId back
+
+		if ($self->__totalNumAnnotatedGenes == $self->__totalNumGenes){
+
+		    print "\nThe name '$gene' did not correspond to an entry from the AnnotationProvider.\n";
+		    print "However, the client has indicated that all genes have annotation.\n";
+		    print "You should probably check that '$gene' is a real name.\n\n";
+
+		}
+
+		# Now we need to deal with the lack of databaseId
+		# We'll simply create a fake one, that we can easily
+		# recognize later, so we can deal with it accordingly
+		
+		$databaseId = $kFakeIdPrefix.$gene;
 
 	    }
 
@@ -627,9 +659,9 @@ sub __buildHashRefOfAnnotations{
 
     foreach my $databaseId (@{$databaseIdsRef}) {
 
-	# get goids, if the databaseId is defined
+	# get goids, if the databaseId is not a fake one
 
-	my @goids = $self->__allGOIDsForDatabaseId($databaseId) if (defined $databaseId);
+	my @goids = $self->__allGOIDsForDatabaseId($databaseId) if ($databaseId !~ /^$kFakeIdPrefix/o);
 
 	if (!@goids) { 
 	    
@@ -641,7 +673,7 @@ sub __buildHashRefOfAnnotations{
 			   $self->__ontologyProvider->rootNode->goid,
 			   $kUnannotatedNode->goid));
 
-	    # cache the value
+	    # now cache the goids	    
 
 	    $self->{$kGOIDsForDatabaseIds}->{$databaseId} = \@goids;
 	    
@@ -678,7 +710,7 @@ sub __allGOIDsForDatabaseId{
 	my %goids; # so we keep the list unique
 	
 	foreach my $goid (@{$self->__annotationProvider->goIdsByDatabaseId(databaseId => $databaseId,
-									   aspect     => $self->__aspect)}) {	    
+									   aspect     => $self->aspect)}){
 
 	    # just in case an annotation is to a goid not present in the ontology
 
@@ -738,7 +770,7 @@ sub __calculatePValues{
 
     @pvalueArray = sort {$a->{PVALUE} <=> $b->{PVALUE}} @pvalueArray;
 
-    $self->{$kPvalues} = \@pvalueArray
+    $self->{$kPvalues} = \@pvalueArray;
 
 }
 
@@ -747,40 +779,42 @@ sub __processOneGOID{
 ############################################################################
 # This processes one GOID.  It determines the number of annotations to
 # the current GOID, and the P-value of that number of annotations.
+# The pvalue is calculated as the probability of observing x or more
+# positives in a sample on n, given that there are M positives in a
+# population of N.  This can be calculated using the hypergeometric
+# distribution, or the binomial.
+#
 # It returns a hash reference encoding that information.
 
-    my ($self, $goid, $numGenes) = @_;
+    my ($self, $goid, $n) = @_;
 
-    my $totalNumAnnotationsToGoId = $self->__totalNumAnnotationsToGoId($goid);
-    my $numAnnotationsToGoId      = $self->__numAnnotationsToGoId($goid);
-    my $totalNumGenes             = $self->__totalNumGenes();
-    my $p                         = $totalNumAnnotationsToGoId / $totalNumGenes;
-    my $method                    = $self->__method;
+    my $M = $self->__totalNumAnnotationsToGoId($goid);
+    my $x = $self->__numAnnotationsToGoId($goid);
+    my $N = $self->__totalNumGenes();
 
-    my $pvalue = 0;
-    
-    for (my $j = $self->__numAnnotationsToGoId($goid); $j <= $numGenes; $j++) {
-	
-	if ($method eq 'hypergeometric'){
 
-	    $pvalue += $self->__hypergeometric($j, $numGenes, $totalNumAnnotationsToGoId, $totalNumGenes);
+    my $method;
 
-	}else{
+    if ($self->__method eq 'hypergeometric'){
 
-	    $pvalue += $self->__binomial($j, $numGenes, $p);
+	$method = "__pValueByHypergeometric";
 
-	}
+    }else{
+
+	$method = "__pValueByBinomial";
 
     }
-    
+	
+    my $pvalue = $self->$method($x, $n, $M, $N);
+
     my $node = $self->__ontologyProvider->nodeFromId($goid) || $kUnannotatedNode;
     
     my $hashRef = {
 	
 	NODE                  => $node,
 	PVALUE		      => $pvalue,
-	NUM_ANNOTATIONS       => $numAnnotationsToGoId,
-	TOTAL_NUM_ANNOTATIONS => $totalNumAnnotationsToGoId
+	NUM_ANNOTATIONS       => $x,
+	TOTAL_NUM_ANNOTATIONS => $M
 	    
 	};
     
@@ -940,6 +974,54 @@ sub __logFact{
 }    
 
 ############################################################################
+sub __pValueByHypergeometric{
+############################################################################
+# This method calculate the pvalue of of observing x or more positives from
+# a sample of n, given that there are M positives in a population of N
+
+    my ($self, $x, $n, $M, $N) = @_;
+
+    my $pvalue = 0;
+
+    # simply add up the probabilities for each x through n
+
+    for (my $i = $x; $i <= $n; $i++){
+
+	$pvalue += $self->__hypergeometric($i, $n, $M, $N);
+
+    }
+
+    return ($pvalue);
+
+}
+
+
+
+############################################################################
+sub __pValueByBinomial{
+############################################################################
+# This method calculate the pvalue of of observing x or more positives from
+# a sample of n, given that there are M positives in a population of N
+
+    my ($self, $x, $n, $M, $N) = @_;
+
+    my $pvalue = 0;
+
+    my $probability = $M/$N;
+
+    # simply add up the probabilities for each x through n
+
+    for (my $i = $x; $i <= $n; $i++){
+
+	$pvalue += $self->__binomial($i, $n, $probability);
+
+    }
+
+    return ($pvalue);
+
+}
+
+############################################################################
 sub __allGoIdsForList{
 ############################################################################
 # This returns an array of GOIDs to which genes in the passed in gene
@@ -960,12 +1042,14 @@ sub __correctPvalues{
 # minimal subset from which all hypotheses can be reconstructed.  This
 # is the number of nodes whose level of annotatation cannot be solely
 # reconstructed from child nodes that were hypotheses themselves.
-# This corresponds to the union of the following three classes of node:
+# This corresponds to the union of the following three classes of
+# node:
 #
-# 1).  Leaf hypotheses (i.e. hypotheses which have no children that were tested as
-#      hypotheses).
+# 1).  Leaf hypotheses (i.e. hypotheses which have no children that
+#      were tested as hypotheses).
 #
-# 2).  Hypotheses that have at least one non-hypothesis child with an annotation.
+# 2).  Hypotheses that have at least one non-hypothesis child with an
+#      annotation.
 #      
 # 3).  Hypotheses with direct annotation.
 
@@ -1097,16 +1181,24 @@ sub __directlyAnnotatedHypotheses{
     my %directlyAnnotatedNodes;
 
     # first we have to work out which nodes are directly annotated by
-    # our list of genes.  We could have done this earlier, but rather
-    # than muddy the __buildHashRefOfAnnotations and __allGOIDsForDatabaseId
-    # code, we'll do it more cleanly here
+    # our list of genes.
 
     foreach my $databaseId ($self->__databaseIds) {
 
-	next if !defined $databaseId; # skip those with no databaseId
+	if ($databaseId =~ /^$kFakeIdPrefix/){
+
+	    # if they have a fake id, simply record a direct
+	    # annotation to the 'unannotated' node, then skip to
+	    # looking at the next databaseId
+
+	    $directlyAnnotatedNodes{$kUnannotatedNode->goid} = undef;
+
+	    next;
+
+	}
 
 	foreach my $goid (@{$self->__annotationProvider->goIdsByDatabaseId(databaseId => $databaseId,
-									   aspect     => $self->__aspect)}) {
+									   aspect     => $self->aspect)}) {
 
 	    $directlyAnnotatedNodes{$goid} = undef;
 
@@ -1114,7 +1206,9 @@ sub __directlyAnnotatedHypotheses{
 
     }
 
-    # now check which of out hypotheses are directly annotated
+    # now check which of our hypotheses are directly annotated, by
+    # seeing which of our hypotheses are in the list of directly
+    # annotated nodes that we just generated.
 
     my @directlyAnnotatedHypotheses;
 
@@ -1197,7 +1291,7 @@ sub __ontologyProvider{
 }
 
 ############################################################################
-sub __aspect{
+sub aspect{
 ############################################################################
 
     return $_[0]->{$kArgs}{aspect};
@@ -1345,6 +1439,14 @@ Usage:
     $hypothesis++;
 
     }
+
+=head2 aspect
+
+Returns the aspect with the the GO::TermFinder object was constructed.
+
+Usage:
+
+    my $aspect = $termFinder->aspect;
 
 =head1 Authors
 

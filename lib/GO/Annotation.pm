@@ -4,7 +4,7 @@ package GO::Annotation;
 # Author     : Gavin Sherlock
 # Date Begun : March 9th 2003
 
-# $Id$
+# $Id: Annotation.pm,v 1.1 2003/10/17 15:37:05 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -45,5 +45,8 @@ $VERSION = 0.1;
 GO::Annotation
 
 =head1 DESCRIPTION
+
+This package currently does nothing, but is a placeholder for future
+development....
 
 =cut

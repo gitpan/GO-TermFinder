@@ -1,8 +1,33 @@
-Revision history for Perl extension GO_modules.
+Revision history for Perl extension GO-TermFinder.
 
-0.1  Fri Mar  7 13:51:32 2003
-	- original version; created by h2xs 1.21 with options
-		-n GO_modules -X
+0.21 Thu Oct 16 19:00:14 2003
+
+	- GO::TermFinder
+
+	Fix for situation when a gene identifier wasn't recognized,
+	but wasn't handled properly - thanks to Shuai Weng for bring
+	it to my attention.
+
+	Cleaned up the code that calculates the p-values to make it
+	easier to write a test-suite, which will allow me to make
+	other desired changes with more confidence.
+
+	- tests
+
+	Created tests for the GO::TermFinder module itself, that pass
+	under both OSX and Solaris in my testing - this should make it
+	much easier to modify in future with less concern for failing
+	to notice new bugs.
+
+	- examples
+
+	Added a new example, that makes it easier to analyze multiple
+	files of gene names.
+
+	- suppressed some warnings that occured due to some undefs
+	  being used.
+	
+	- fixed some documentation typos
 
 0.2  Mon Apr 14 17:55:28 2003
 
@@ -15,3 +40,8 @@ Revision history for Perl extension GO_modules.
 	
 	- added in over 100 tests(!).  Still lots more to do, but this
 	  should help keep the code honest...
+
+0.1  Fri Mar  7 13:51:32 2003
+
+	- original version; created by h2xs 1.21 with options
+		-n GO-TermFinder -X

@@ -5,7 +5,7 @@ package GO::AnnotationProvider::AnnotationParser;
 # Date Begun : Summer 2001
 # Rewritten  : September 25th 2002
 
-# $Id: AnnotationParser.pm,v 1.22 2003/03/03 18:11:45 sherlock Exp $
+# $Id: AnnotationParser.pm,v 1.28 2003/10/17 01:55:27 sherlock Exp $
 
 # Copyright (c) 2003 Gavin Sherlock; Stanford University
 
@@ -33,11 +33,11 @@ package GO::AnnotationProvider::AnnotationParser;
 
 =head1 NAME
 
-GO:AnnotationProvider::AnnotationParser
+GO::AnnotationProvider::AnnotationParser
 
 =head1 SYNOPSIS
 
-GO:AnnotationProvider::AnnotationParser - reads an Gene Ontology
+GO::AnnotationProvider::AnnotationParser - reads a Gene Ontology
 gene associations file, and provides methods by which to retrieve the
 GO annotations for the an annotated entity.
 
@@ -52,7 +52,7 @@ GO annotations for the an annotated entity.
 
     print "Database name: ", $annotationParser->databaseName(), "\n";
 
-    print "StandardName gene name: ", $annotationParser->standardNameForName($geneName), "\n";
+    print "Standard name for gene: ", $annotationParser->standardNameByName($geneName), "\n";
 
     my $i;
 
@@ -166,7 +166,7 @@ use GO::AnnotationProvider;
 @ISA = qw (GO::AnnotationProvider);
 
 $PACKAGE = "GO::AnnotationProvider::AnnotationParser";
-$VERSION = "0.1";
+$VERSION = "0.11";
 
 # CLASS Attributes
 #
@@ -926,7 +926,17 @@ sub standardNameByName{
 
     die "You have supplied an ambiguous name to standardNameByName" if ($self->nameIsAmbiguous($name));
 
-    return $self->{$kIdToStandardName}{$self->databaseIdByName($name)};
+    my $databaseId = $self->databaseIdByName($name);
+
+    if (defined $databaseId){
+
+	return $self->{$kIdToStandardName}{$databaseId};
+
+    }else{
+
+	return undef;
+	
+    }
 
 }
 
@@ -945,8 +955,6 @@ sub nameIsStandardName{
 #     # do something
 #
 # }
-
-
 
     my ($self, $name) = @_;
 

@@ -1,8 +1,10 @@
 Changes
+LICENSE
 MANIFEST
 Makefile.PL
 README
-VERSION
+docs/GO-TermFinder.doc
+examples/analyze.pl
 examples/termFinderClient.pl
 lib/GO/AnnotatedGene.pm
 lib/GO/Annotation.pm
@@ -17,6 +19,7 @@ t/GO-AnnotatedGene.t
 t/GO-AnnotationProvider-AnnotationParser.t
 t/GO-Node.t
 t/GO-OntologyProvider-OntologyParser.t
+t/GO-TermFinder.t
 t/gene_association.sgd
 t/process.ontology
 test.pl

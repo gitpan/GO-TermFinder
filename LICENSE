@@ -1,12 +1,3 @@
-package GO::Reference;
-
-
-# File       : Reference.pm
-# Author     : Gavin Sherlock
-# Date Begun : March 9th 2003
-
-# $Id: Reference.pm,v 1.1 2003/10/16 17:51:13 sherlock Exp $
-
 # License information (the MIT license)
 
 # Copyright (c) 2003 Gavin Sherlock; Stanford University
@@ -30,21 +21,3 @@ package GO::Reference;
 # ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-
-use strict;
-use warnings;
-use diagnostics;
-
-use vars qw ($VERSION);
-
-$VERSION = 0.1;
-
-=pod
-
-=head1 NAME
-
-GO::Reference
-
-=head1 DESCRIPTION
-
-=cut

@@ -4,7 +4,7 @@ package GO::OntologyProvider;
 # Author       : Gavin Sherlock
 # Date Begun   : September 23rd 2002
 
-# $Id: OntologyProvider.pm,v 1.4 2003/03/03 16:49:23 sherlock Exp $
+# $Id: OntologyProvider.pm,v 1.5 2003/10/17 00:33:04 sherlock Exp $
 
 # License information (the MIT license)
 

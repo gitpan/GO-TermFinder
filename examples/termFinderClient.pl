@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Id: termFinderClient.pl,v 1.2 2003/03/03 18:25:50 sherlock Exp $
+# $Id: termFinderClient.pl,v 1.2 2003/10/17 18:53:14 sherlock Exp $
 
 # Date   : 3rd February 2003
 # Author : Gavin Sherlock
@@ -38,7 +38,6 @@ use strict;
 use warnings;
 use diagnostics;
 
-use lib "../lib";
 use GO::TermFinder;
 use GO::AnnotationProvider::AnnotationParser;
 use GO::OntologyProvider::OntologyParser;

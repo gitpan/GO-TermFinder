@@ -4,7 +4,7 @@ package GO::AnnotationProvider;
 # Author      : Gavin Sherlock
 # Date Begun  : September 26th 2002
 
-# $Id: AnnotationProvider.pm,v 1.7 2003/03/03 16:48:22 sherlock Exp $
+# $Id: AnnotationProvider.pm,v 1.9 2003/10/17 00:35:00 sherlock Exp $
 
 # License information (the MIT license)
 

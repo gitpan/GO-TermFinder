@@ -4,7 +4,7 @@ package GO::Node;
 # Author      : Gavin Sherlock
 # Date Begun  : December 23rd 2002
 
-# $Id: Node.pm,v 1.6 2003/03/03 16:48:56 sherlock Exp $ 
+# $Id: Node.pm,v 1.7 2003/10/17 00:34:27 sherlock Exp $ 
 
 # License information (the MIT license)
 
@@ -80,7 +80,7 @@ use diagnostics;
 
 use vars qw ($PACKAGE $VERSION);
 
-$VERSION = 0.1;
+$VERSION = 0.11;
 $PACKAGE = "GO::Node";
 
 # CLASS CONSTANTS

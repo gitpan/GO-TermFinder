@@ -5,7 +5,7 @@ package GO::AnnotatedGene;
 # Author     : Gavin Sherlock
 # Date Begun : March 9th 2003
 
-# $Id$
+# $Id: AnnotatedGene.pm,v 1.1 2003/10/16 17:51:13 sherlock Exp $
 
 # License information (the MIT license)
 
