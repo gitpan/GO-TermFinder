@@ -1,5 +1,13 @@
 Revision history for GO-TermFinder group of modules.
 
+0.61 Fri May  7 11:23:36 2004
+
+	- GO::TermFinder
+
+	Made one line optimization to calculation of p-value using the
+	hypergeometric distribution, such that it is on average about
+	twice as fast.
+
 0.60 Wed May  5 15:04:06 2004
 
 	- GO::TermFinder

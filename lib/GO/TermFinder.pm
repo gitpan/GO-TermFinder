@@ -4,7 +4,7 @@ package GO::TermFinder;
 # Author      : Gavin Sherlock
 # Date Begun  : December 31st 2002
 
-# $Id: TermFinder.pm,v 1.33 2004/05/05 22:35:45 sherlock Exp $
+# $Id: TermFinder.pm,v 1.34 2004/05/07 16:51:03 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -110,7 +110,7 @@ use vars qw ($PACKAGE $VERSION $WARNINGS);
 
 use GO::Node;
 
-$VERSION = '0.40';
+$VERSION = '0.41';
 $PACKAGE = 'GO::TermFinder';
 
 $WARNINGS = 1; # toggle this to zero if you don't want warnings
@@ -1363,16 +1363,23 @@ sub __logFact{
 ############################################################################
 sub __pValueByHypergeometric{
 ############################################################################
-# This method calculate the pvalue of of observing x or more positives from
+# This method calculates the pvalue of of observing x or more positives from
 # a sample of n, given that there are M positives in a population of N
 
     my ($self, $x, $n, $M, $N) = @_;
 
     my $pvalue = 0;
 
+    # we can optimize this, because if their are only 5 positives in
+    # the whole population, and our sample size is 20, there is no
+    # point of calculating probabilities for 6 through 20, as a priori
+    # you cannot get that many.
+
+    my $min = ($M < $n) ? $M : $n; 
+
     # simply add up the probabilities for each x through n
 
-    for (my $i = $x; $i <= $n; $i++){
+    for (my $i = $x; $i <= $min; $i++){
 
 	$pvalue += $self->__hypergeometric($i, $n, $M, $N);
 

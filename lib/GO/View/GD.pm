@@ -253,6 +253,74 @@ sub sagecolor2 { $_[0]->{'_sagecolor2'} }
 sub sagecolor3 { $_[0]->{'_sagecolor3'} }
 sub sagecolor4 { $_[0]->{'_sagecolor4'} }
 
+
+=pod
+
+=head2 white1
+=head2 black
+
+=head2 blue
+=head2 blue1
+=head2 blue2
+=head2 blue3
+=head2 blue4
+=head2 blue5
+
+=head2 lightBlue
+=head2 darkBlue
+
+=head2 darkGreen
+=head2 green
+=head2 green1
+=head2 green2
+=head2 green3
+=head2 green4
+=head2 green5
+
+=head2 grey
+=head2 darkGrey
+=head2 lightGrey
+
+=head2 magenta
+=head2 magenta1
+=head2 magenta2
+=head2 magenta3
+=head2 magenta4
+=head2 magenta5
+
+=head2 maroon
+
+=head2 orange
+=head2 orange1
+
+
+=head2 red
+=head2 red1
+=head2 red2
+=head2 red3
+=head2 red4
+
+=head2 tan
+=head2 tan1
+
+=head2 white
+
+=head2 yellow
+=head2 yellow1
+=head2 yellow2
+=head2 yellow3
+
+=head2 chartreuse
+
+=head2 cenColor
+
+=head2 sagecolor1
+=head2 sagecolor2
+=head2 sagecolor3
+=head2 sagecolor4
+
+=cut
+
 ######################################################################
 sub drawFrameWithLabelAndDate { 
 ######################################################################

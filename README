@@ -96,10 +96,12 @@ this is ok - it is not a failure - it is merely noting that there is a
 test marke as TODO, that currently gives the wrong answer.
 
 Also, if you have the Test::Pod::Coverage module installed, you will
-get some failures, as the GO::View(::*) modules are not fully
-documented - you can safely ignore these failures, and still go ahead
-with the install.  I hope to have full pod coverage of all the modules
-by the next release.
+get a couple of warnings, like:
+
+t/pod-coverage..............................ok 1/16# GO::Annotation: no public symbols defined
+t/pod-coverage..............................ok 5/16# GO::Reference: no public symbols defined
+
+but you can happily ignore these, as everything has full, valid pod!
 
 DEPENDENCIES
 
