@@ -1,4 +1,4 @@
-GO-TermFinder version 0.30
+GO-TermFinder version 0.40
 ==========================
 
 This set of modules can be have been developed under the auspices of
@@ -23,11 +23,11 @@ To install this module type the following:
 
 First decompress the gzipped tarfile, e.g:
 
-   tar zxvf GO-TermFinder-0.30.tar.gz
+   tar zxvf GO-TermFinder-0.4.tar.gz
 
 Then cd into the created directory, e.g.:
 
-   cd GO-TermFinder-0.30
+   cd GO-TermFinder-0.4
 
 Then actually install it:
 

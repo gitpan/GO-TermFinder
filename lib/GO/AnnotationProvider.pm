@@ -4,7 +4,7 @@ package GO::AnnotationProvider;
 # Author      : Gavin Sherlock
 # Date Begun  : September 26th 2002
 
-# $Id: AnnotationProvider.pm,v 1.11 2003/11/26 22:15:23 sherlock Exp $
+# $Id: AnnotationProvider.pm,v 1.12 2003/12/03 02:39:42 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -36,7 +36,7 @@ use diagnostics;
 
 use vars qw ($VERSION);
 
-$VERSION = 0.11;
+$VERSION = 0.12;
 
 =pod
 
@@ -131,7 +131,7 @@ ambiguous.  Previous versions would have not treated these as
 ambiguous.  In the case that a name is provided in a certain casing,
 which was encountered only once, then it will be treated as
 unambiguous.  This is the price of wanting a case insensitive
-annotation parser...
+annotation provider...
 
 Usage:
 
@@ -167,7 +167,7 @@ be treated as ambiguous.  Previous versions would have not treated
 these as ambiguous.  However, if the name provided is of the exact
 casing as a name that appeared only once with that exact casing, then
 it is treated as unabiguous. This is the price of wanting a case
-insensitive annotation parser...
+insensitive annotation provider...
 
 Usage:
 
@@ -287,7 +287,7 @@ goIdsByName is now case insensitive - that is, if there is a name that
 is used twice using different casing, that will be treated as
 ambiguous.  Previous versions would have not treated these as
 ambiguous.  This is the price of wanting a case insensitive annotation
-parser.  In the event that a name is provided that is ambiguous
+provider.  In the event that a name is provided that is ambiguous
 because of case, if it matches exactly the case of one of the possible
 matches, it will be treated unambiguously.
 
@@ -318,6 +318,16 @@ sub standardNameByDatabaseId{
 
 This method returns the standard name for a database id.
 
+NB: API change
+
+standardNameByDatabaseId is now case insensitive - that is, if there
+is a databaseId that is used twice (or more) using different casing,
+it will be treated as ambiguous.  Previous versions would have not
+treated these as ambiguous.  This is the price of wanting a case
+insensitive annotation provider.  In the event that a name is provided
+that is ambiguous because of case, if it matches exactly the case of
+one of the possible matches, it will be treated unambiguously.
+
 Usage:
 
     my $standardName = $annotationProvider->standardNameByDatabaseId($databaseId);
@@ -338,23 +348,13 @@ sub databaseIdByStandardName{
 
 This method returns the database id for a standard name.
 
-B: API change
-
-standardNameByDatabaseId is now case insensitive - that is, if there
-is a databaseId that is used twice (or more) using different casing,
-it will be treated as ambiguous.  Previous versions would have not
-treated these as ambiguous.  This is the price of wanting a case
-insensitive annotation parser.  In the event that a name is provided
-that is ambiguous because of case, if it matches exactly the case of
-one of the possible matches, it will be treated unambiguously.
-
 NB: API change
 
 databaseIdByStandardName is now case insensitive - that is, if there
 is a standard name that is used twice (or more) using different
 casing, it will be treated as ambiguous.  Previous versions would have
 not treated these as ambiguous.  This is the price of wanting a case
-insensitive annotation parser.  In the event that a name is provided
+insensitive annotation provider.  In the event that a name is provided
 that is ambiguous because of case, if it matches exactly the case of
 one of the possible matches, it will be treated unambiguously.
 
@@ -388,7 +388,7 @@ databaseIdByName is now case insensitive - that is, if there is a name
 that is used twice using different casing, that will be treated as
 ambiguous.  Previous versions would have not treated these as
 ambiguous.  This is the price of wanting a case insensitive annotation
-parser.  In the event that a name is provided that is ambiguous
+provider.  In the event that a name is provided that is ambiguous
 because of case, if it matches exactly the case of one of the possible
 matches, it will be treated unambiguously.
 
@@ -422,7 +422,7 @@ standardNameByName is now case insensitive - that is, if there is a
 name that is used twice using different casing, that will be treated
 as ambiguous.  Previous versions would have not treated these as
 ambiguous.  This is the price of wanting a case insensitive annotation
-parser.
+provider.
 
 Usage:
 
@@ -458,7 +458,7 @@ standard name, then it will return true.
 
 Usage :
 
-    if ($annotationParser->nameIsStandardName($name)){
+    if ($annotationProvider->nameIsStandardName($name)){
 
 	# do something
 
@@ -488,7 +488,7 @@ database id, then it will return true.
 
 Usage :
 
-    if ($annotationParser->nameIsDatabaseId($name)){
+    if ($annotationProvider->nameIsDatabaseId($name)){
 
 	# do something
 
@@ -520,7 +520,7 @@ annotation, then it will return true.
 
 Usage :
 
-    if ($annotationParser->nameIsAnnotated(name => $name)){
+    if ($annotationProvider->nameIsAnnotated(name => $name)){
 
 	# blah
 
@@ -528,7 +528,7 @@ Usage :
 
 or:
 
-    if ($annotationParser->nameIsAnnotated(name   => $name,
+    if ($annotationProvider->nameIsAnnotated(name   => $name,
 					   aspect => $aspect)){
 
 	# blah

@@ -4,7 +4,7 @@ package GO::TermFinder;
 # Author      : Gavin Sherlock
 # Date Begun  : December 31st 2002
 
-# $Id: TermFinder.pm,v 1.28 2003/11/26 19:47:15 sherlock Exp $
+# $Id: TermFinder.pm,v 1.31 2003/12/03 02:45:21 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -34,7 +34,7 @@ package GO::TermFinder;
 
 =head1 NAME
 
-GO::TermFinder - identify GO nodes that annotate a group of genes with a significant p-valueå
+GO::TermFinder - identify GO nodes that annotate a group of genes with a significant p-value
 
 =head1 DESCRIPTION
 
@@ -107,12 +107,12 @@ use vars qw ($PACKAGE $VERSION);
 
 use GO::Node;
 
-$VERSION = '0.24';
+$VERSION = '0.3';
 $PACKAGE = 'GO::TermFinder';
 
 # class variables
 
-my @kRequiredArgs = qw (annotationProvider ontologyProvider totalNumGenes aspect);
+my @kRequiredArgs = qw (annotationProvider ontologyProvider aspect);
 
 my $kArgs                    = $PACKAGE.'::__args';
 my $kTotalGoNodeCounts       = $PACKAGE.'::__totalGoNodeCounts';
@@ -141,17 +141,64 @@ my $kFakeIdPrefix    = "NO_DETERMINED_DATABASE_ID_";
 sub new{
 #####################################################################
 # This is the constructor.  It expects to be passed named arguments
-# for an annotationProvider, an ontologyProvider, and how many genes
-# in total exist.  In addition, it must be told the aspect of the ontology
-# provider, so that it knows how to query the annotationProvider.
+# for an annotationProvider, an ontologyProvider.  In addition, it
+# must be told the aspect of the ontology provider, so that it knows
+# how to query the annotationProvider.
 #
-# Usage :
+# There are also some additional, optional arguments:
+#
+# population: this argument allows a client to indicate the population
+# that should used to calculate a background distribution of GO terms.
+# In the absence of population argument, then the background
+# distribution will be drawn from all genes in the annotationProvider.
+# This should be provided as an array reference, and no ambiguous
+# names should be provided (see AnnotationProvider for details of name
+# ambiguity).  This option is particularly pertinent in the case that
+# e.g. you assayed 2000 genes in a two hybrid, and found 20
+# interesting ones.  To find significant terms, you need to do it in
+# he context of the genes that you assayed, not in the context of all
+# genes with annotation.
+#
+# totalNumGenes: this argument allows a client to indicate that the size
+# of the background distribution is in fact larger that the number of genes
+# that exist in the annotation provider, and the extra genes are merely
+# assumed to be entirely unannotated.
+#
+# Thus - if using 'population', the total number of genes considered
+# as the background will be the number of genes in the provided
+# population.  If not using 'population', then the number of genes
+# that will be considered as the total population will be the number
+# of genes in the annotationProvider.  However, if the totalNumGenes
+# argument is provided, then that number will be used as the size of
+# the population.  If it is not larger than the total number of genes
+# in the annotationParser, then the number of genes in the
+# annotationParser will be used.  The totalNumGenes and the population
+# arguments are mutually exclusive, and both should not be provided at
+# the same time.
+#
+# Usage (population is larger than those with annotations):
 #
 #    my $termFinder = GO::TermFinder->new(annotationProvider=> $annotationProvider,
 #                                         ontologyProvider  => $ontologyProvider,
 #                                         totalNumGenes     => $num,
 #                                         aspect            => <P|C|F>);
 #
+#
+# Usage (use all annotated genes as population):
+#
+#    my $termFinder = GO::TermFinder->new(annotationProvider=> $annotationProvider,
+#                                         ontologyProvider  => $ontologyProvider,
+#                                         aspect            => <P|C|F>);
+#
+#
+# Usage (use a subset of genes as the background population):
+#
+#    my $termFinder = GO::TermFinder->new(annotationProvider=> $annotationProvider,
+#                                         ontologyProvider  => $ontologyProvider,
+#                                         population        => \@genes,
+#                                         aspect            => <P|C|F>);
+#
+
 
     my ($class, %args) = @_;
 
@@ -175,6 +222,8 @@ sub __checkAndStoreArgs{
 
     my ($self, %args) = @_;
 
+    # first check that the required arguments were provided
+
     foreach my $arg (@kRequiredArgs){
 
 	if (!exists ($args{$arg})){
@@ -189,7 +238,21 @@ sub __checkAndStoreArgs{
 
 	$self->{$kArgs}{$arg} = $args{$arg}; # store in object
 
-    }   
+    }
+
+    if (exists($args{'population'})){
+
+	$self->{$kArgs}{'population'} = $args{'population'};
+
+    }
+
+    # now check that we didn't get a funky combination
+
+    if (exists($args{'population'}) && exists($args{'totalNumGenes'})){
+
+	die "The population and totalNumGenes arguments are mutually exclusive, but you have provided both.";
+
+    }
 
 }
 
@@ -201,26 +264,52 @@ sub __init{
 
     my ($self) = @_;
 
-    my @allDatabaseIds = $self->__annotationProvider->allDatabaseIds();
+    my @databaseIds;
 
-    my $totalNumAnnotatedGenes = scalar(@allDatabaseIds);
+    if ($self->__isUsingPopulation){
+
+	# we need to get databaseids for the provided population
+
+	my ($databaseIdsRef, $databaseId2OrigNameRef) = $self->__determineDatabaseIdsFromGenes($self->__population);
+
+	@databaseIds = @{$databaseIdsRef};	
+
+    }else{
+
+	# we simply use all databaseIds from the annotationProvider
+
+	@databaseIds = $self->__annotationProvider->allDatabaseIds();
+
+    }
+
+    my $populationSize = scalar(@databaseIds);
 
     # check that they said there's at least as many genes in total
     # as the annotation provider says that there is.    
 
-    if ($totalNumAnnotatedGenes > $self->__totalNumGenes){
+    if (! defined $self->__totalNumGenes){
+
+	# in this case, no 'totalNumGenes' argument was provided
+
+	$self->{$kArgs}{totalNumGenes} = $populationSize;
+
+    }elsif ($populationSize > $self->__totalNumGenes){
+
+	# in this case, they are using an annotation provider, and
+	# have provided a totalNumGenes that is less than the number
+	# of genes that the annotation provider knows about
 
 	print "The annotation provider indicates that there are more genes than the client indicated.\n";
-	print "The annotation provider indicates there are $totalNumAnnotatedGenes, while the client indicated only ", $self->__totalNumGenes, ".\n";
-	print "Thus assuming the total number of genes is that indicated by the annotation provider.\n";
+	print "The annotation provider indicates there are $populationSize, while the client indicated only ", $self->__totalNumGenes, ".\n";
+	print "Thus, assuming the correct total number of genes is that indicated by the annotation provider.\n";
 
-	$self->{$kArgs}{totalNumGenes} = $totalNumAnnotatedGenes;
+	$self->{$kArgs}{totalNumGenes} = $populationSize;
 
     }
 
-    my $totalNodeCounts = $self->__buildHashRefOfAnnotations(\@allDatabaseIds);
+    my $totalNodeCounts = $self->__buildHashRefOfAnnotations(\@databaseIds);
 
-    if ($totalNumAnnotatedGenes < $self->__totalNumGenes){
+    if ($populationSize < $self->__totalNumGenes){
 
     	# if there are extra, entirely unannotated genes (indicated by
     	# the total number of genes provided being greater than the
@@ -239,14 +328,14 @@ sub __init{
 
 	$totalNodeCounts->{$rootNodeId} = $self->__totalNumGenes;
 
-	$totalNodeCounts->{$childNodeId} += ($self->__totalNumGenes - $totalNumAnnotatedGenes);
+	$totalNodeCounts->{$childNodeId} += ($self->__totalNumGenes - $populationSize);
 
-	$totalNodeCounts->{$kUnannotatedNode->goid} += ($self->__totalNumGenes - $totalNumAnnotatedGenes);
+	$totalNodeCounts->{$kUnannotatedNode->goid} += ($self->__totalNumGenes - $populationSize);
 
     }
 
     $self->{$kTotalGoNodeCounts}      = $totalNodeCounts;
-    $self->{$kTotalNumAnnotatedGenes} = $totalNumAnnotatedGenes;
+    $self->{$kTotalNumAnnotatedGenes} = $populationSize;
 
     $self->__cacheLogFactorials;
 
@@ -421,7 +510,15 @@ sub findTerms{
     # This means that when retrieving GOID's, we can always retrieve
     # them by databaseId, which is unambiguous.
 
-    $self->__determineDatabaseIdsFromGenes($args{'genes'});
+    my ($databaseIdsRef, $databaseId2OrigNameRef) = $self->__determineDatabaseIdsFromGenes($args{'genes'});
+
+    # now store them within the self object
+
+    $self->{$kDatabaseIds} = $databaseIdsRef;
+
+    # also store the mapping of the databaseId to its original name
+
+    $self->{$kDatabaseId2OrigName} = $databaseId2OrigNameRef;
 
     if (scalar ($self->__databaseIds) > $self->__totalNumGenes){
 
@@ -456,6 +553,26 @@ sub findTerms{
 #
 # PRIVATE INSTANCE METHODS
 #
+
+#####################################################################
+sub __isUsingPopulation{
+#####################################################################
+# This private method returns a boolean to indicate whether the client
+# passed in a population of genes to use as the background distribution
+
+    return exists $_[0]->{$kArgs}{population};
+
+}
+
+#####################################################################
+sub __population{
+#####################################################################
+# This private method returns a reference to an array of identifiers
+# that were passed in to be used as a background population
+
+    return $_[0]->{$kArgs}{population};
+
+}
 
 #####################################################################
 sub __totalNumAnnotatedGenes{
@@ -512,7 +629,8 @@ sub __determineDatabaseIdsFromGenes{
 #####################################################################
 # This method determines a list of databaseIds for the list of
 # supplied list of genes for which the client wants to find GO terms.
-# It then stores them within the object.
+# It then returns a reference to that list, and a reference to a hash
+# that maps the databaseIds to the originally supplied name
 #
 # If more than one gene maps to the same databaseId, then the
 # databaseId is only put in the list once, and a warning is printed.
@@ -623,13 +741,10 @@ sub __determineDatabaseIdsFromGenes{
 
     }
 
-    # now store them within the self object
+    # return databaseIds, and their mapping to the originally supplied
+    # name
 
-    $self->{$kDatabaseIds} = \@databaseIds;
-
-    # also store the mapping of the databaseId to it's original name
-
-    $self->{$kDatabaseId2OrigName} = \%databaseIds;
+    return (\@databaseIds, \%databaseIds);
 
 }
 
@@ -706,7 +821,7 @@ sub __allGOIDsForDatabaseId{
 
 	    if (!$self->__ontologyProvider->nodeFromId($goid)){ # 
 
-		print "$goid, used to annotate $databaseId, does not appear in the ontology.\n";
+		print STDERR "Warning : $goid, used to annotate $databaseId, does not appear in the ontology.\n";
 		
 		# don't record any annotations for this databaseId - 
 		# will mean it just gets Gene_Ontology, its child, and unannotated
@@ -1262,11 +1377,16 @@ sub __addAnnotationsToPValues{
     # now go through each databaseId, and add the information in
 
     foreach my $databaseId ($self->__databaseIds) {
+
+	# look at all goids for this database id
 	
 	foreach my $goid ($self->__allGOIDsForDatabaseId($databaseId)){
 	    
 	    next if (! exists $nodeToIndex{$goid}); # this node wasn't a hypothesis
 	    
+	    # if this goid was a hypothesis, we can annotated the
+	    # corresponding hypothesis with the gene
+
 	    $self->{$kPvalues}->[$nodeToIndex{$goid}]->{ANNOTATED_GENES}->{$databaseId} = $self->__origNameForDatabaseId($databaseId);
 	    
 	}
@@ -1320,17 +1440,64 @@ __END__
 
 =head2 new
 
-This is the constructor.  It expects to be passed named arguments for
-an annotationProvider, an ontologyProvider, and how many genes in
-total exist.  In addition, it must be told the aspect of the ontology
-provider, so that it knows how to query the annotationProvider.
+This is the constructor.  It expects to be passed named arguments
+for an annotationProvider, an ontologyProvider.  In addition, it
+must be told the aspect of the ontology provider, so that it knows
+how to query the annotationProvider.
 
-Usage :
+There are also some additional, optional arguments:
 
-    my $termFinder = GO::TermFinder->new(annotationProvider=> $annotationProvider,
-					 ontologyProvider  => $ontologyProvider,
-					 totalNumGenes     => $num,
-					 aspect            => <P|C|F>);
+population: this argument allows a client to indicate the population
+that should used to calculate a background distribution of GO terms.
+In the absence of population argument, then the background
+distribution will be drawn from all genes in the annotationProvider.
+This should be provided as an array reference, and no ambiguous
+names should be provided (see AnnotationProvider for details of name
+ambiguity).  This option is particularly pertinent in the case that
+e.g. you assayed 2000 genes in a two hybrid, and found 20
+interesting ones.  To find significant terms, you need to do it in
+the context of the genes that you assayed, not in the context of all
+genes with annotation.
+
+totalNumGenes: this argument allows a client to indicate that the size
+of the background distribution is in fact larger that the number of genes
+that exist in the annotation provider, and the extra genes are merely
+assumed to be entirely unannotated.
+
+NB: This is an API change, as totalNumGenes was previously required.
+
+Thus - if using 'population', the total number of genes considered
+as the background will be the number of genes in the provided
+population.  If not using 'population', then the number of genes
+that will be considered as the total population will be the number
+of genes in the annotationProvider.  However, if the totalNumGenes
+argument is provided, then that number will be used as the size of
+the population.  If it is not larger than the total number of genes
+in the annotationParser, then the number of genes in the
+annotationParser will be used.  The totalNumGenes and the population
+arguments are mutually exclusive, and both should not be provided at
+the same time.
+
+Usage (population is larger than those with annotations):
+
+   my $termFinder = GO::TermFinder->new(annotationProvider=> $annotationProvider,
+                                        ontologyProvider  => $ontologyProvider,
+                                        totalNumGenes     => $num,
+                                        aspect            => <P|C|F>);
+
+
+Usage (use all annotated genes as population):
+
+   my $termFinder = GO::TermFinder->new(annotationProvider=> $annotationProvider,
+                                        ontologyProvider  => $ontologyProvider,
+                                        aspect            => <P|C|F>);
+
+Usage (use a subset of genes as the background population):
+
+   my $termFinder = GO::TermFinder->new(annotationProvider=> $annotationProvider,
+                                        ontologyProvider  => $ontologyProvider,
+                                        population        => \@genes,
+                                        aspect            => <P|C|F>);
 
 =head1 Instance Methods
 

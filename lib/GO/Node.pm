@@ -4,7 +4,7 @@ package GO::Node;
 # Author      : Gavin Sherlock
 # Date Begun  : December 23rd 2002
 
-# $Id: Node.pm,v 1.8 2003/11/26 19:27:54 sherlock Exp $ 
+# $Id: Node.pm,v 1.9 2003/12/03 02:35:38 sherlock Exp $ 
 
 # License information (the MIT license)
 
@@ -34,7 +34,7 @@ package GO::Node;
 
 =head1 NAME
 
-GO::Node
+GO::Node - provides information about a node in the Gene Ontology
 
 =head1 DESCRIPTION
 
@@ -80,7 +80,7 @@ use diagnostics;
 
 use vars qw ($PACKAGE $VERSION);
 
-$VERSION = 0.15;
+$VERSION = 0.16;
 $PACKAGE = "GO::Node";
 
 # CLASS CONSTANTS

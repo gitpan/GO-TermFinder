@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Id: termFinderClient.pl,v 1.4 2003/11/26 18:45:30 sherlock Exp $
+# $Id: termFinderClient.pl,v 1.5 2003/12/03 02:33:19 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -99,7 +99,9 @@ foreach my $pvalue (@pvalues){
     
     "CORRECTED P-VALUE\t", $pvalue->{CORRECTED_PVALUE}, "\n",
     
-    "NUM_ANNOTATIONS\t", $pvalue->{NUM_ANNOTATIONS}, " (of ", $pvalue->{TOTAL_NUM_ANNOTATIONS}, ")\n\n";
+    "NUM_ANNOTATIONS\t", $pvalue->{NUM_ANNOTATIONS}, " (of ", $pvalue->{TOTAL_NUM_ANNOTATIONS}, ")\n",
+
+    "ANNOTATED_GENES\t", join(", ", values (%{$pvalue->{ANNOTATED_GENES}})), "\n\n";
     
     $hypothesis++;
     

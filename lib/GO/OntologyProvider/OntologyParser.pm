@@ -5,7 +5,7 @@ package GO::OntologyProvider::OntologyParser;
 # Date Begun : Summer 2001
 # Rewritten  : September 29th 2002
 
-# $Id: OntologyParser.pm,v 1.14 2003/11/26 19:22:38 sherlock Exp $
+# $Id: OntologyParser.pm,v 1.15 2003/12/03 02:36:29 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -33,9 +33,9 @@ package GO::OntologyProvider::OntologyParser;
 
 =pod
 
-=head1 NAME - Provides API for retrieving data from Gene Ontology files
+=head1 NAME
 
-GO::OntologyProvider::OntologyParser
+GO::OntologyProvider::OntologyParser - Provides API for retrieving data from Gene Ontology files
 
 =head1 SYNOPSIS
 
@@ -154,7 +154,7 @@ use GO::Node;
 
 use Storable qw(nstore);
 
-$VERSION = 0.12;
+$VERSION = 0.13;
 $PACKAGE = "GO::OntologyProvider::OntologyParser";
 
 ##################################################################
