@@ -1,6 +1,17 @@
 Revision history for Perl extension GO_modules.
 
-0.01  Fri Mar  7 13:51:32 2003
+0.1  Fri Mar  7 13:51:32 2003
 	- original version; created by h2xs 1.21 with options
 		-n GO_modules -X
 
+0.2  Mon Apr 14 17:55:28 2003
+
+	- added in code such that the findTerms() method will return
+	  enough data for you to be able to work out which genes in
+	  the list you provided were annotated to which GO nodes.
+
+	- started some work on Annotation, AnnotatedGene, and
+	  Reference objects.  Nothing is using them yet though.
+	
+	- added in over 100 tests(!).  Still lots more to do, but this
+	  should help keep the code honest...

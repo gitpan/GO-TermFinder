@@ -4,7 +4,7 @@ package GO::TermFinder;
 # Author      : Gavin Sherlock
 # Date Begun  : December 31st 2002
 
-# $Id: TermFinder.pm,v 1.16 2003/03/03 16:50:24 sherlock Exp $
+# $Id: TermFinder.pm,v 1.17 2003/04/15 00:39:33 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -35,6 +35,14 @@ package GO::TermFinder;
 =head1 NAME
 
 GO::TermFinder
+
+=head1 Changes
+
+0.1 : Initial release
+
+0.2 : Added in code such that the client can determine which genes in
+      the provided to findTerms were annotated to the nodes that were
+      treated as hypotheses.
 
 =head1 DESCRIPTION
 
@@ -97,23 +105,24 @@ use vars qw ($PACKAGE $VERSION);
 
 use GO::Node;
 
-$VERSION = 0.1;
+$VERSION = 0.2;
 $PACKAGE = 'GO:TermFinder';
 
 # class variables
 
 my @kRequiredArgs = qw (annotationProvider ontologyProvider totalNumGenes aspect);
 
-my $kArgs                   = $PACKAGE.'::__args';
-my $kTotalGoNodeCounts      = $PACKAGE.'::__totalGoNodeCounts';
-my $kGoCounts               = $PACKAGE.'::__goCounts';
-my $kGOIDsForDatabaseIds    = $PACKAGE.'::__goidsForDatabaseIds';
-my $kDatabaseIds            = $PACKAGE.'::__databaseIds';
-my $kTotalNumAnnotatedGenes = $PACKAGE.'::__totalNumAnnotatedGenes';
-my $kMethod                 = $PACKAGE.'::__method';
-my $kLogFactorials          = $PACKAGE.'::__logFactorials';
-my $kLogNCr                 = $PACKAGE.'::__logNCr';
-my $kPvalues                = $PACKAGE.'::__pValues';
+my $kArgs                    = $PACKAGE.'::__args';
+my $kTotalGoNodeCounts       = $PACKAGE.'::__totalGoNodeCounts';
+my $kGoCounts                = $PACKAGE.'::__goCounts';
+my $kGOIDsForDatabaseIds     = $PACKAGE.'::__goidsForDatabaseIds';
+my $kDatabaseIds             = $PACKAGE.'::__databaseIds';
+my $kTotalNumAnnotatedGenes  = $PACKAGE.'::__totalNumAnnotatedGenes';
+my $kMethod                  = $PACKAGE.'::__method';
+my $kLogFactorials           = $PACKAGE.'::__logFactorials';
+my $kLogNCr                  = $PACKAGE.'::__logNCr';
+my $kPvalues                 = $PACKAGE.'::__pValues';
+my $kDatabaseId2OrigName     = $PACKAGE.'::__databaseId2OrigName';
 
 my %kAllowedMethods = ('hypergeometric' => undef,
 		       'binomial'       => undef); # the methods by which the p-value can be calculated
@@ -333,6 +342,10 @@ sub findTerms{
 #    TOTAL_NUM_ANNOTATIONS The number of genes across the genome
 #                          annotated to the node
 #
+#    ANNOTATED_GENES       A hash reference, whose keys are the databaseIds 
+#                          that are annotated to the node, and whose values
+#                          are the original name supplied to the findTerms() method.
+#
 # The entries are sorted by increasing p-value (ie least likely is first).
 #
 # It expects to be passed, by reference, a list of gene names for
@@ -367,7 +380,9 @@ sub findTerms{
 #
 #	"CORRECTED P-VALUE\t", $pvalue->{CORRECTED_PVALUE}, "\n",
 #	
-#	"NUM_ANNOTATIONS\t", $pvalue->{NUM_ANNOTATIONS}, " (of ", $pvalue->{TOTAL_NUM_ANNOTATIONS}, ")\n\n";
+#       "NUM_ANNOTATIONS\t", $pvalue->{NUM_ANNOTATIONS}, " (of ", $pvalue->{TOTAL_NUM_ANNOTATIONS}, ")\n",
+#
+#       "ANNOTATED_GENES\t", join(", ", values (%{$pvalue->{ANNOTATED_GENES}})), "\n\n";
 #
 #       $hypothesis++;
 #
@@ -412,7 +427,7 @@ sub findTerms{
 
 	return (); # simply return an empty list
 
-    } 
+    }
 
     $self->{$kGoCounts} = $self->__buildHashRefOfAnnotations([$self->__databaseIds]);
 
@@ -422,6 +437,11 @@ sub findTerms{
     # multiple hypothesis testing
 
     $self->__correctPvalues;
+
+    # now we want to add in which genes were annotated to each node
+    # so that the client can determine them
+
+    $self->__addAnnotationsToPValues;
 
     return $self->__pValues;
 
@@ -449,6 +469,16 @@ sub __databaseIds{
 # genes that were used to initialize the object.
 
     return @{$_[0]->{$kDatabaseIds}};
+
+}
+
+#####################################################################
+sub __origNameForDatabaseId{
+#####################################################################
+# This method returns the original name that was provided to the term
+# finder for the databaseId that it was translated to.
+
+    return $_[0]->{$kDatabaseId2OrigName}->{$_[1]};
 
 }
 
@@ -575,6 +605,10 @@ sub __determineDatabaseIdsFromGenes{
 
     $self->{$kDatabaseIds} = \@databaseIds;
 
+    # also store the mapping of the databaseId to it's original name
+
+    $self->{$kDatabaseId2OrigName} = \%databaseIds;
+
 }
 
 ############################################################################
@@ -606,6 +640,10 @@ sub __buildHashRefOfAnnotations{
 	    push (@goids, (($self->__ontologyProvider->rootNode->childNodes())[0]->goid, 
 			   $self->__ontologyProvider->rootNode->goid,
 			   $kUnannotatedNode->goid));
+
+	    # cache the value
+
+	    $self->{$kGOIDsForDatabaseIds}->{$databaseId} = \@goids;
 	    
 	}
 
@@ -1099,6 +1137,46 @@ sub __directlyAnnotatedHypotheses{
 }
 
 ############################################################################
+sub __addAnnotationsToPValues{
+############################################################################
+# This method looks through the annotated nodes, and adds in information
+# about which genes are annotated to them, so that the client can retrieve
+# that information.
+
+    my $self = shift;
+
+    # to do this, we can take advantage of the fact that all the
+    # databaseIds should have all their databaseIds cached, and we can
+    # retrieve them through the __allGOIDsForDatabaseId() method
+
+    # first go through the annotated nodes, and simply hash the goid to the
+    # entry in the pValues array
+
+    my %nodeToIndex;
+
+    for (my $i = 0; $i < @{$self->{$kPvalues}}; $i++){
+    
+	$nodeToIndex{$self->{$kPvalues}->[$i]->{NODE}->goid} = $i;
+
+    }
+
+    # now go through each databaseId, and add the information in
+
+    foreach my $databaseId ($self->__databaseIds) {
+	
+	foreach my $goid ($self->__allGOIDsForDatabaseId($databaseId)){
+	    
+	    next if (! exists $nodeToIndex{$goid}); # this node wasn't a hypothesis
+	    
+	    $self->{$kPvalues}->[$nodeToIndex{$goid}]->{ANNOTATED_GENES}->{$databaseId} = $self->__origNameForDatabaseId($databaseId);
+	    
+	}
+
+    }
+
+}
+
+############################################################################
 sub __annotationProvider{
 ############################################################################
 # This private method returns the annotationProvider that was used
@@ -1196,6 +1274,11 @@ contents of the hashes in the returned array are:
     TOTAL_NUM_ANNOTATIONS The number of genes across the genome
                           annotated to the node
 
+    ANNOTATED_GENES       A hash reference, whose keys are the
+                          databaseIds that are annotated to the node,
+                          and whose values are the original name
+                          supplied to the findTerms() method.
+
 The entries are sorted by increasing p-value (ie least likely is
 first).  
 
@@ -1255,7 +1338,9 @@ Usage:
 
 	"CORRECTED P-VALUE\t", $pvalue->{CORRECTED_PVALUE}, "\n",
 	
-	"NUM_ANNOTATIONS\t", $pvalue->{NUM_ANNOTATIONS}, " (of ", $pvalue->{TOTAL_NUM_ANNOTATIONS}, ")\n\n";
+        "NUM_ANNOTATIONS\t", $pvalue->{NUM_ANNOTATIONS}, " (of ", $pvalue->{TOTAL_NUM_ANNOTATIONS}, ")\n",
+
+        "ANNOTATED_GENES\t", join(", ", values (%{$pvalue->{ANNOTATED_GENES}})), "\n\n";
 
     $hypothesis++;
 

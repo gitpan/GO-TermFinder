@@ -34,6 +34,10 @@ use strict;
 use warnings;
 use diagnostics;
 
+use vars qw ($VERSION);
+
+$VERSION = 0.1;
+
 =pod
 
 =head1 NAME

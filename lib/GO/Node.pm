@@ -109,23 +109,23 @@ sub new{
 # Usage:
 #
 #    my $node = GO::Node->new(goid => $goid,
-#                                  term => $term);
+#                             term => $term);
 
     my ($class, %args) = @_;
 
     my $self = {};
 
+    bless $self, $class;
+
     if (!exists ($args{'goid'}) || !defined ($args{'goid'})){
 
-	die "You must provide a goid to the $PACKAGE constructor";
+	$self->_handleMissingArgument(argument=>'goid');
 
     }elsif (!exists ($args{'term'}) || !defined ($args{'term'})){
 
-	die "You must provide a term to the $PACKAGE constructor";
+	$self->_handleMissingArgument(argument=>'term');
 
     }
-
-    bless $self, $class;
 
     $self->{$kGoid}  = $args{'goid'};
     $self->{$kTerm}  = $args{'term'};
@@ -606,6 +606,43 @@ sub isRoot{
 
 }
 
+=pod
+
+=head1 Protected Methods
+
+=cut
+
+# need to make this code common to all objects, or to
+# start using something like Params-Validate
+
+############################################################################
+sub _handleMissingArgument{
+############################################################################
+=pod
+
+=head2 _handleMissingArgument
+
+This protected method simply provides a simple way for concrete
+subclasses to deal with missing arguments from method calls.  It will
+die with an appropriate error message.
+
+Usage:
+
+    $self->_handleMissingArgument(argument=>'blah');
+
+=cut
+##############################################################################
+
+    my ($self, %args) = @_;
+
+    my $arg = $args{'argument'} || $self->_handleMissingArgument(argument=>'argument');
+
+    my $receiver = (caller(1))[3];
+    my $caller   = (caller(2))[3];
+
+    die "The method $caller did not provide a value for the '$arg' argument for the $receiver method";
+
+}
 
 1; # To keep Perl happy
 
