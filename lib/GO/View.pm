@@ -168,7 +168,7 @@ use GO::View::GD;
 use vars qw ($PACKAGE $VERSION);
 
 $PACKAGE = 'GO::View';
-$VERSION = 0.11;
+$VERSION = 0.12;
 
 my $kReplacementText = "<REPLACE_THIS>";
 
@@ -997,7 +997,7 @@ sub _createAndShowImage {
 
     }
 
-    if ($self->{PVALUE_HASH_REF_FOR_GOID} && 
+    if (exists $self->{PVALUE_HASH_REF_FOR_GOID} && 
 	$height > $self->{MIN_MAP_WIDTH_FOR_ONE_LINE_KEY}) {
 
 	### draw keys on the top of the map
@@ -1952,6 +1952,10 @@ sub _initPvaluesGeneNamesDescendantGoids {
 #
 #########################################################################
 
+# This method reads through all of the hypotheses that came from the
+# TermFinder analysis, and records various information that is
+# subsequently used to construct the image.
+
     my ($self) = @_;
  
     my %foundGoid;
@@ -1961,41 +1965,66 @@ sub _initPvaluesGeneNamesDescendantGoids {
     my %loci4goid;
     my %pvalue4goid;
 
+    # don't know what the following variable is really meant to do
+
     my $maxTopNodeToShow = 6;
 
     my $count = 0;
 
+    # go through each hypothesis
+
     foreach my $pvalue (@{$self->_termFinder}){
-    
-	next if ($pvalue->{CORRECTED_PVALUE} > $self->{PVALUE_CUTOFF});
-        
-	last if ($count >= $maxTopNodeToShow);
- 
+
+	# map the goid to the corrected p-value for later retrieval
+	# when deciding on what color a node should have
+
 	$pvalue4goid{$pvalue->{NODE}->goid} = $pvalue->{CORRECTED_PVALUE};
 
-	my $ancestorNode = 
-	    $self->_ontologyProvider->nodeFromId($pvalue->{NODE}->goid);
+	# skip if it has a p-value worse than our threshold note
+
+	next if ($pvalue->{CORRECTED_PVALUE} > $self->{PVALUE_CUTOFF});
+        
+	# skip if we've exceeded the maxTopNodeToShow value
+	#
+	# NB, we do next, rather than last, so that the mapping of the
+	# goid to p-value still gets recorded
+
+	next if ($count >= $maxTopNodeToShow);
+
+	# grab a GO::Node object for this hypothesis
+
+	my $ancestorNode = $pvalue->{NODE};
+
+	# now go through the list of genes directly annotated to this node
 
 	foreach my $databaseId (keys %{$pvalue->{ANNOTATED_GENES}}) {
 
 	    my $gene = $pvalue->{ANNOTATED_GENES}->{$databaseId};
 
-	    my $goidArrayRef = 
-		$self->_annotationProvider->goIdsByName(name=>$gene,
-						        aspect=>$self->{ASPECT});
+	    # get every goid that the gene maps to.
+
+	    my $goidArrayRef = $self->_annotationProvider->goIdsByName(name   => $gene,
+								       aspect => $self->{ASPECT});
 	
+	    # go through each node
+
 	    foreach my $goid (@$goidArrayRef) {
 
 		my $node = $self->_ontologyProvider->nodeFromId($goid);
+
+		# the following check seems superfluous...
 	
 		if (!$node) { next; }
 
-		if ($ancestorNode->goid ne $goid && 
-		     !$ancestorNode->isAnAncestorOf($node)) {
+		# skip if the current node is not an ancestor of the
+		# GO::Node which was a tested hypothesis - however, I
+		# don't understand the logic of the other part of the
+		# && statement ($ancestorNode->goid ne $goid)....
 
-		    next;
+		next if ($ancestorNode->goid ne $goid && !$ancestorNode->isAnAncestorOf($node));
 
-	        }
+		# now record some information about the goid and gene
+
 		if (!$foundGoidGene{$goid."::".$gene}) {  
 
 		    $loci4goid{$goid} .= ":".$gene;
@@ -2004,21 +2033,35 @@ sub _initPvaluesGeneNamesDescendantGoids {
 
 		}
 
+		# skip if we've already seen the goid
+
 		if ($foundGoid{$goid}) { next; }
+
+		# record the goid as directly annotated by a gene of interest
 
 		push(@directAnnotatedGoid, $goid);
 	    
+		# and remember that we've seen it
+
 		$foundGoid{$goid}++;
+
 	    }
+
 	}
 
 	$count++;
    
     }
 
+    # now record all of our information within ourselves
+
     $self->{DESCENDANT_GOID_ARRAY_REF}   = \@directAnnotatedGoid;
     $self->{PVALUE_HASH_REF_FOR_GOID}    = \%pvalue4goid;
     $self->{GENE_NAME_HASH_REF_FOR_GOID} = \%loci4goid;
+
+    # and return the number of top nodes recorded (don't know why, and
+    # doubt it's an accurate reflection of the number of top nodes
+    # that will actually be displayed
 
     return $count;
 
@@ -2059,7 +2102,7 @@ sub _initVariablesFromConfigFile {
 
 	    $self->{HEIGHT_DISPLAY_RATIO} = $value;
 
-        }elsif ($name =~ /^minMapWidth/i) {
+        }elsif ($name =~ /^minMapWidth\b/i) { # need the \b, as it is a substring of minMapWidth4OneLineKey
 
 	    $self->{MIN_MAP_WIDTH} = $value;
 

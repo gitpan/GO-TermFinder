@@ -1,5 +1,23 @@
 Revision history for GO-TermFinder group of modules.
 
+0.63 Wed Aug 11 11:16:23 2004
+
+	- GO::View
+
+	Fix to bug that was causing some significant nodes to not
+	have the correct color, and thus making the image somewhat
+	misleading - thanks to the folks at Princeton for spotting it,
+	and to Shuai Weng at SGD for providing a fix in record time.
+
+	fixed bug in reading of configuration file, that resulted from
+	minMapWidth being a substring of minMapWidth4OneLineKey.  This
+	now stops a warning being printed.
+
+	Added some comments to GO::View, as a start to begin to fully
+	comment all the code - there's a long way to go until I
+	understand fully how GO::View works.  Then I can add
+	postscript output for publication qaulity figures...
+
 0.62 Wed Jul 28 11:46:08 2004
 
 	No major new functionality - small bug fix release
