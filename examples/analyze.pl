@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Id: analyze.pl,v 1.3 2003/10/17 23:28:33 sherlock Exp $
+# $Id: analyze.pl,v 1.4 2003/11/26 18:39:11 sherlock Exp $
 
 # Date   : 16th October 2003
 # Author : Gavin Sherlock
@@ -267,3 +267,95 @@ foreach my $file (@ARGV){
     
 }
 
+=pod
+
+=head1 NAME
+
+analyze.pl - batch processor to find terms for lists of genes in various files
+
+=head1 SYNOPSIS
+
+This program takes a list of files, each of which contain a list of
+genes, with one gene per line.  It will findTerms for the lists of
+genes in each of the GO aspects, outputting the results to a file
+named for the original file, but with a .terms extension.  It will
+only output terms with a corrected P-value of <= 0.05.
+
+It will use the first supplied argument as the annotation file, the
+second argument as the expected number of genes within the organism,
+and all subsequent files as ones containing lists of genes.  You need
+to provide the ontology files in the same directory from which you are
+executing this script, and the GO-TermFinder libraries must be in your
+path.
+
+Usage:
+
+    analyze.pl <annotation_file> <numGenes> <file1> <file2> <file3> ... <fileN>
+
+e.g.
+
+    analyze.pl gene_association.sgd 7200 file1.txt file2.txt file3.txt
+
+An example output file might look like this:
+
+    The following gene(s) will be considered:
+    
+    YDL235C YPD1
+    YDL224C WHI4
+    YDL225W SHS1
+    YDL226C GCS1
+    YDL227C HO
+    YDL228C YDL228C
+    YDL229W SSB1
+    YDL230W PTP1
+    YDL231C BRE4
+    YDL232W OST4
+    YDL233W YDL233W
+    YDL234C GYP7
+    
+    Finding terms for P
+    
+    
+    Finding terms for C
+    
+    
+    Finding terms for F
+    
+    -- 1 of 15--
+    GOID    GO:0005096
+    TERM    GTPase activator activity
+    CORRECTED P-VALUE       0.0113038452336839
+    UNCORRECTED P-VALUE     0.00113038452336839
+    NUM_ANNOTATIONS 2 of 12 in the list, vs 31 of 7272 in the genome
+    The genes annotated to this node are:
+    YDL234C, YDL226C
+    -- 2 of 15--
+    GOID    GO:0008047
+    TERM    enzyme activator activity
+    CORRECTED P-VALUE       0.0316194107645226
+    UNCORRECTED P-VALUE     0.00316194107645226
+    NUM_ANNOTATIONS 2 of 12 in the list, vs 52 of 7272 in the genome
+    The genes annotated to this node are:
+    YDL234C, YDL226C
+    -- 3 of 15--
+    GOID    GO:0005083
+    TERM    small GTPase regulatory/interacting protein activity
+    CORRECTED P-VALUE       0.0340606972468798
+    UNCORRECTED P-VALUE     0.00340606972468798
+    NUM_ANNOTATIONS 2 of 12 in the list, vs 54 of 7272 in the genome
+    The genes annotated to this node are:
+    YDL234C, YDL226C
+    -- 4 of 15--
+    GOID    GO:0030695
+    TERM    GTPase regulator activity
+    CORRECTED P-VALUE       0.0475469908576535
+    UNCORRECTED P-VALUE     0.00475469908576535
+    NUM_ANNOTATIONS 2 of 12 in the list, vs 64 of 7272 in the genome
+    The genes annotated to this node are:
+    YDL234C, YDL226C
+
+=head1 AUTHORS
+
+Gavin Sherlock, sherlock@genome.stanford.edu
+
+=cut

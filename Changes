@@ -1,5 +1,28 @@
 Revision history for Perl extension GO-TermFinder.
 
+0.3  Wed Nov 26 11:48:57 2003
+
+	- GO::AnnotationProvider::AnnotationParser
+
+	Extensive reworking of the code, such that it is now case
+	insensitive, with certain caveats.  See the pod for that
+	module for more details.
+
+	- GO::TermFinder
+
+	No longer considers the root node, or its child (the aspect)
+	as hypotheses, as they are known a priori to have a p-value of
+	1.
+
+	- GO::Node
+
+	Added lengthOfShortestPathToRoot and meanLengthOfPathsToRoot
+	methods.
+
+	- added in new tests for the AnnotationParser that make sure
+	  that the behaviour with respect to case insensitivity is
+	  correct.
+
 0.23 Sat Nov  1 11:56:43 2003
 
 	- GO::OntologyProvider::OntologyParser;

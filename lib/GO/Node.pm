@@ -4,7 +4,7 @@ package GO::Node;
 # Author      : Gavin Sherlock
 # Date Begun  : December 23rd 2002
 
-# $Id: Node.pm,v 1.7 2003/10/17 00:34:27 sherlock Exp $ 
+# $Id: Node.pm,v 1.8 2003/11/26 19:27:54 sherlock Exp $ 
 
 # License information (the MIT license)
 
@@ -80,7 +80,7 @@ use diagnostics;
 
 use vars qw ($PACKAGE $VERSION);
 
-$VERSION = 0.11;
+$VERSION = 0.15;
 $PACKAGE = "GO::Node";
 
 # CLASS CONSTANTS
@@ -440,6 +440,67 @@ sub lengthOfLongestPathToRoot{
 
 }
 
+##################################################################
+sub lengthOfShortestPathToRoot{
+##################################################################
+# This public method returns the length of the shortest path to the
+# root of the ontology from the node.  If the node is in fact the root,
+# then a value of zero will be returned.
+#
+# Usage:
+#
+#    my $length = $node->lengthOfShortestPathToRoot;
+
+    my $self = shift;
+
+    my $minLength;
+
+    foreach my $path ($self->pathsToRoot){
+
+	$minLength = scalar (@{$path}) if (!defined $minLength || scalar (@{$path}) < $minLength);
+
+    }
+
+    return $minLength;
+
+}
+
+##################################################################
+sub meanLengthOfPathsToRoot{
+##################################################################
+# This public method returns the mean length of all paths to the
+# root node.  If the node is in fact the root, then a value of zero
+# will be returned.
+#
+# Usage:
+#
+#    my $length = $node->meanLengthOfPathsToRoot;
+
+    my $self = shift;
+
+    my $total = 0;
+    my $num   = 0;
+
+    foreach my $path ($self->pathsToRoot){
+
+	$total += scalar (@{$path});
+	$num++;
+
+    }
+
+    my $average = 0;
+
+    if ($num){
+
+	$average = $total/$num;
+
+    }
+
+    return $average;
+
+}
+    
+
 # Methods returning a boolean
 
 ##################################################################
@@ -786,6 +847,26 @@ a value of zero will be returned.
 Usage:
 
     my $length = $node->lengthOfLongestPathToRoot;
+
+=head2 lengthOfShortestPathToRoot
+
+This public method returns the length of the shortest path to the
+root of the ontology from the node.  If the node is in fact the root,
+then a value of zero will be returned.
+
+Usage:
+
+    my $length = $node->lengthOfShortestPathToRoot;
+
+=head2 meanLengthOfPathsToRoot
+
+This public method returns the mean length of all paths to the
+root node.  If the node is in fact the root, then a value of zero
+will be returned.
+
+Usage:
+
+    my $length = $node->meanLengthOfPathsToRoot;
 
 =head2 isValid
 

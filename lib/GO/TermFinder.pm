@@ -4,7 +4,7 @@ package GO::TermFinder;
 # Author      : Gavin Sherlock
 # Date Begun  : December 31st 2002
 
-# $Id: TermFinder.pm,v 1.26 2003/11/01 19:55:56 sherlock Exp $
+# $Id: TermFinder.pm,v 1.28 2003/11/26 19:47:15 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -34,31 +34,7 @@ package GO::TermFinder;
 
 =head1 NAME
 
-GO::TermFinder - identify GO nodes that annotate a group of genes with a significant p-value
-
-=head1 Changes
-
-These changes listed are for the TermFinder module only.  To see a
-list of all changes to the distribution, then see the Changes file.
-
-    0.1  : Initial release
-
-    0.2  : Added in code such that the client can determine which genes
-           in the provided to findTerms were annotated to the nodes
-           that were treated as hypotheses.
-
-    0.21 : Fix for situation when a gene identifier wasn't recognized,
-           but wasn't handled properly - thanks to Shuai Weng for
-           bring it to my attention.
-
-           Cleaned up the code that calculates the p-values to make it
-           easier to write a test-suite, which will allow me to make
-           other desired changes with more confidence.
-
-    0.22 : Fix for test that could occasionally fail that relied on
-           the sort order of the pValue array when two items had the
-           same pvalue.  It now sorts such cases explicitly by goid,
-           so the result should always be the same.
+GO::TermFinder - identify GO nodes that annotate a group of genes with a significant p-valueå
 
 =head1 DESCRIPTION
 
@@ -117,6 +93,10 @@ accurate, rather than the log versions that I currently have.  The
 latest version of Math::BigInt has a C implementation underneath, that
 may even speed it up a little.
 
+The multiple hypothesis correction (based on some simulations I've
+run) appears not to be conservative enough, and thus needs more
+work....
+
 =cut
 
 use strict;
@@ -127,7 +107,7 @@ use vars qw ($PACKAGE $VERSION);
 
 use GO::Node;
 
-$VERSION = '0.23';
+$VERSION = '0.24';
 $PACKAGE = 'GO::TermFinder';
 
 # class variables
@@ -772,7 +752,18 @@ sub __calculatePValues{
     
     foreach my $goid ($self->__allGoIdsForList) {
 	
-	next if ($self->__numAnnotationsToGoId($goid) == 1); # skip GO nodes with only one gene annotation
+	# skip GO nodes with only one gene annotation
+
+	next if ($self->__numAnnotationsToGoId($goid) == 1);
+
+	# skip the root node, as it has to have a probability of 1
+
+	next if ($goid eq $self->__ontologyProvider->rootNode->goid);
+
+	# skip its immediate child, which corresponds to the aspect of
+	# the ontology, as it also has a probability of 1
+
+	next if ($goid eq ($self->__ontologyProvider->rootNode->childNodes())[0]->goid);	
 
 	push (@pvalueArray, $self->__processOneGOID($goid, $numDatabaseIds));
 

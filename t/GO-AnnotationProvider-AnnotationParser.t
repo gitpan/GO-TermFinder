@@ -1,11 +1,11 @@
 use Test;
-BEGIN { plan tests => 47 };
+BEGIN { plan tests => 64 };
 
 # File       : GO-AnnotationProvider-AnnotationParser.t
 # Author     : Gavin Sherlock
 # Date Begun : March 9th 2002
 
-# $Id: GO-AnnotationProvider-AnnotationParser.t,v 1.1 2003/10/16 17:23:35 sherlock Exp $
+# $Id: GO-AnnotationProvider-AnnotationParser.t,v 1.3 2003/11/26 18:48:56 sherlock Exp $
 
 # This file forms a set of tests for the
 # GO::AnnotationProvider::AnnotationParser class
@@ -161,4 +161,92 @@ ok($annotations->nameIsAmbiguous("HAP1"));
 
 ok(scalar($annotations->databaseIdsForAmbiguousName("HAP1")), 2);
 
+# now we're going to do a set of tests with our fake file
 
+my $fakeFile = "t/gene_association.test";
+
+my $fakeAnnotations = GO::AnnotationProvider::AnnotationParser->new(annotationFile => $fakeFile);
+
+# ALIAS1 is deliberately ambiguous
+
+ok($fakeAnnotations->nameIsAmbiguous("ALIAS1"));
+
+# now check its database ids
+
+my %expectedIds = (DBID1 => undef,
+		   DBID2 => undef,
+		   DBID3 => undef);
+
+# note, because it is case-insensitive, we'll use a different case
+
+my @ids = $fakeAnnotations->databaseIdsForAmbiguousName("aLiAs1");
+
+ok(scalar(@ids) == scalar(keys %expectedIds));
+
+foreach my $id (@ids){
+
+    ok(exists $expectedIds{$id});
+
+}
+
+# now check the sole goid for DBID1
+
+ok($fakeAnnotations->goIdsByDatabaseId(databaseId => 'DBID1',
+				       aspect     => 'C')->[0], 'GO:0005743');
+
+# and now for dbid1
+
+ok($fakeAnnotations->goIdsByDatabaseId(databaseId => 'dbid1',
+				       aspect     => 'C')->[0], 'GO:1005743');
+
+
+# now, dbid1 and DBID1 should not be ambiguous, if I use them
+# with their correct casing
+
+ok(!$fakeAnnotations->nameIsAmbiguous('DBID1'));
+
+ok(!$fakeAnnotations->nameIsAmbiguous('dbid1'));
+
+# but with mixed casing, it should be ambiguous
+
+ok($fakeAnnotations->nameIsAmbiguous('DbId1'));
+
+# now look at GENE4 - in any casing, it should be unambiguous
+
+ok(!$fakeAnnotations->nameIsAmbiguous('GENE4'));
+
+ok(!$fakeAnnotations->nameIsAmbiguous('gene4'));
+
+ok(!$fakeAnnotations->nameIsAmbiguous('Gene4'));
+
+# now look at GENE5 - three different casings should be unambiguous,
+# but anything else should be ambiguous
+
+ok(!$fakeAnnotations->nameIsAmbiguous('GENE5'));
+
+ok(!$fakeAnnotations->nameIsAmbiguous('gene5'));
+
+ok(!$fakeAnnotations->nameIsAmbiguous('Gene5'));
+
+ok($fakeAnnotations->nameIsAmbiguous('GeNe5'));
+
+=pod
+
+=head1 Modifications
+
+CVS info is listed here:
+
+ # $Author: sherlock $
+ # $Date: 2003/11/26 18:48:56 $
+ # $Log: GO-AnnotationProvider-AnnotationParser.t,v $
+ # Revision 1.3  2003/11/26 18:48:56  sherlock
+ # finished adding various tests that deal with case sensitivity issues
+ # and ambiguity of gene names.  All tests appear to pass, finally!
+ #
+ # Revision 1.2  2003/11/22 00:07:01  sherlock
+ # started adding tests to deal with a fake annotation file, and check
+ # that the case insensitive stuff works.
+ #
+ # 
+
+=cut

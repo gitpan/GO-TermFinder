@@ -1,11 +1,11 @@
 use Test;
-BEGIN { plan tests => 28 };
+BEGIN { plan tests => 39 };
 
 # File       : GO-TermFinder.t
 # Author     : Gavin Sherlock
 # Date Begun : September 1st 2003
 
-# $Id: GO-TermFinder.t,v 1.2 2003/10/20 00:08:12 sherlock Exp $
+# $Id: GO-TermFinder.t,v 1.3 2003/11/22 00:09:12 sherlock Exp $
 
 # This file forms a set of tests for the GO::TermFinder class
 
@@ -86,6 +86,37 @@ my @topGoids = ("GO:0006790",
 		"GO:0019752");
 
 # now check that these are returned by the TermFinder
+
+for (my $i = 0; $i< @topGoids; $i++){
+
+    ok($pvalues[$i]->{NODE}->goid, $topGoids[$i]);        
+
+}
+
+# now let's run exactly the same test again, but with a different
+# casing of the genes
+
+@pvalues = $termFinder->findTerms(genes=>[qw(ypl250c
+					     Met11
+					     mxr1
+					     Met17
+					     SAM3
+					     met28
+					     Str3
+					     MMp1
+					     mET1
+					     YIl074c
+					     Mht1
+					     mEt14
+					     Met16
+					     Met3
+					     mET10
+					     ecm17
+					     Met2
+					     MuP1
+					     MeT6)]);
+
+# now check that the same GO terms are returned by the TermFinder
 
 for (my $i = 0; $i< @topGoids; $i++){
 
@@ -223,3 +254,19 @@ $pvalue = 1 - $pvalue;
 $pvalue = sprintf("%.8f", $pvalue);
 
 ok($pvalue, $test);
+
+=head1 Modifications
+
+ List them here.
+
+ RCS information:
+
+ # $Author: sherlock $
+ # $Date: 2003/11/22 00:09:12 $
+ # $Log: GO-TermFinder.t,v $
+ # Revision 1.3  2003/11/22 00:09:12  sherlock
+ # added some new tests to see that differently cased versions of the
+ # gene names still give the same result.
+ #
+
+=cut

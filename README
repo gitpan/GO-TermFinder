@@ -1,4 +1,4 @@
-GO-TermFinder version 0.23
+GO-TermFinder version 0.30
 ==========================
 
 This set of modules can be have been developed under the auspices of
@@ -14,7 +14,7 @@ object allows a client program to provide a list of genes, from which
 it will determine p-values for the annotation associated with that
 list of genes.  It does this using the hypergeometric distribution.
 In addition, a corrected p_value is calculated, to correct for
-multiple hypothesis testing.  Two simple clients of these modules are
+multiple hypothesis testing.  Some simple clients of these modules are
 provided in the examples directory.
 
 INSTALLATION
@@ -23,11 +23,11 @@ To install this module type the following:
 
 First decompress the gzipped tarfile, e.g:
 
-   tar zxvf GO-TermFinder-0.23.tar.gz
+   tar zxvf GO-TermFinder-0.30.tar.gz
 
 Then cd into the created directory, e.g.:
 
-   cd GO-TermFinder-0.23
+   cd GO-TermFinder-0.30
 
 Then actually install it:
 
@@ -45,12 +45,18 @@ libraries in an alternative place, such as your home directory, do:
 perl Makefile.PL INSTALLDIRS=site INSTALLSITELIB=/home/your/private/dir
 
 as the first step of the installation, where /home/your/private/dir is
-obviously your target destination.  Note for the example scripts to
+obviously your target destination.  Note, for the example scripts to
 work you will have to add:
 
 use lib "/home/your/private/dir"
 
-before the other use statements.
+before the other use statements.  Also, during the 'make install'
+stage, there will be some complaints about not be able to install man
+pages, but you can happily ignore these.
+
+In the case that you get any failures during 'make test', please send
+me the full output of 'make test', and let me know what version or
+perl you are using, and on what platform you are running.
 
 DEPENDENCIES
 
@@ -64,7 +70,7 @@ If you have any suggestions, bug fixes, etc, please post them to the
 gmod site at http://www.gmod.org/, or send email to
 sherlock@genome.stanford.edu.
 
-Note
+NOTE
 
 The ontology files in the t/ directory are solely for the purposes of
 running the test suite.  You should get the latest versions from the

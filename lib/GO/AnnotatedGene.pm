@@ -5,7 +5,7 @@ package GO::AnnotatedGene;
 # Author     : Gavin Sherlock
 # Date Begun : March 9th 2003
 
-# $Id: AnnotatedGene.pm,v 1.1 2003/10/16 17:51:13 sherlock Exp $
+# $Id: AnnotatedGene.pm,v 1.2 2003/11/26 19:23:52 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -37,7 +37,7 @@ use diagnostics;
 
 =pod
 
-=head1 NAME
+=head1 NAME - I<will> provide an object to hold info about a gene with GO annotation
 
 GO::AnnotatedGene
 
@@ -72,7 +72,7 @@ A lot....
 use vars qw ($PACKAGE $VERSION);
 
 $PACKAGE = "GO::AnnotatedGene";
-$VERSION = "0.1";
+$VERSION = "0.11";
 
 # CLASS Attributes
 #

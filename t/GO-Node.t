@@ -1,11 +1,11 @@
 use Test;
-BEGIN { plan tests => 23 };
+BEGIN { plan tests => 25 };
 
 # File       : GO-Node.t
 # Author     : Gavin Sherlock
 # Date Begun : March 9th 2002
 
-# $Id: GO-Node.t,v 1.1 2003/10/16 17:23:35 sherlock Exp $
+# $Id: GO-Node.t,v 1.2 2003/11/26 21:51:46 sherlock Exp $
 
 # This file forms a set of tests for the GO::Node class
 
@@ -20,9 +20,10 @@ my $term = "biological_process";
 
 my @methods = qw(addChildNodes addParentNodes addPathToRoot goid term
 		 childNodes parentNodes pathsToRoot pathsToAncestor
-		 ancestors lengthOfLongestPathToRoot isValid
-		 isAParentOf isAChildOf isAnAncestorOf isADescendantOf
-		 isLeaf isRoot);
+		 ancestors lengthOfLongestPathToRoot
+		 lengthOfShortestPathToRoot meanLengthOfPathsToRoot
+		 isValid isAParentOf isAChildOf isAnAncestorOf
+		 isADescendantOf isLeaf isRoot);
 
 my $node = GO::Node->new(goid => $goid,
 			 term => $term);

@@ -4,7 +4,7 @@ package GO::AnnotationProvider;
 # Author      : Gavin Sherlock
 # Date Begun  : September 26th 2002
 
-# $Id: AnnotationProvider.pm,v 1.10 2003/10/22 15:27:39 sherlock Exp $
+# $Id: AnnotationProvider.pm,v 1.11 2003/11/26 22:15:23 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -36,7 +36,7 @@ use diagnostics;
 
 use vars qw ($VERSION);
 
-$VERSION = 0.1;
+$VERSION = 0.11;
 
 =pod
 
@@ -104,6 +104,16 @@ referred to, that are non-unique, this interface defines a set of
 methods for determining whether a name is ambiguous, and to what
 database identifiers such ambiguous names may refer.
 
+Note, that the AnnotationProvider subclasses should now be case
+insensitive, though there are some caveats.  For instance, you can use
+'cdc6' to retrieve data for CDC6.  However, This if gene has been
+referred to as abc1, and another referred to as ABC1, then these are
+treated as different, and unambiguous.  However, the text 'Abc1' would
+be considered ambiguous, because it could refer to either.  On the
+other hand, if a single gene is referred to as XYZ1 and xyz1, and no
+other genes have that name (in any casing), then Xyz1 would still be
+considered unambiguous.
+
 =cut
 
 ##############################################################################
@@ -113,9 +123,15 @@ sub nameIsAmbiguous{
 
 =head2 nameIsAmbiguous
 
-This public method returns a boolean to indicate whether a name is
-ambiguous, ie whether the name might map to more than one entity (and
-therefore more than one databaseId)
+NB: API change:
+
+nameIsAmbiguous is now case insensitive - that is, if there is a name
+that is used twice using different casing, that will be treated as
+ambiguous.  Previous versions would have not treated these as
+ambiguous.  In the case that a name is provided in a certain casing,
+which was encountered only once, then it will be treated as
+unambiguous.  This is the price of wanting a case insensitive
+annotation parser...
 
 Usage:
 
@@ -143,6 +159,16 @@ This public method returns an array of database identifiers for an
 ambiguous name.  If the name is not ambiguous, an empty list will be
 returned.
 
+B: API change:
+
+databaseIdsForAmbiguousName is now case insensitive - that is, if
+there is a name that is used twice using different casing, that will
+be treated as ambiguous.  Previous versions would have not treated
+these as ambiguous.  However, if the name provided is of the exact
+casing as a name that appeared only once with that exact casing, then
+it is treated as unabiguous. This is the price of wanting a case
+insensitive annotation parser...
+
 Usage:
 
     my @databaseIds = $annotationProvider->databaseIdsForAmbiguousName($name);
@@ -163,6 +189,11 @@ sub ambiguousNames{
 
 This method returns an array of names, which from the annotation source
 have been deemed to be ambiguous.
+
+Note - even though this is now case insensitive, if something is
+called both BLAH1 and blah1, we would not deem either of these to be
+ambiguous.  However, if it appeared as blah1 twice, referring to two
+different genes, then blah1 would be ambiguous.
 
 Usage:
 
@@ -250,6 +281,16 @@ test whether the name they are using is ambiguous, using the
 nameIsAmbiguous() method, and handle it accordingly.  If an ambiguous
 name is supplied, then it will die.
 
+NB: API change:
+
+goIdsByName is now case insensitive - that is, if there is a name that
+is used twice using different casing, that will be treated as
+ambiguous.  Previous versions would have not treated these as
+ambiguous.  This is the price of wanting a case insensitive annotation
+parser.  In the event that a name is provided that is ambiguous
+because of case, if it matches exactly the case of one of the possible
+matches, it will be treated unambiguously.
+
 Usage:
 
     my $goidsRef = $annotationProvider->goIdsByName(name=>$name,
@@ -297,6 +338,26 @@ sub databaseIdByStandardName{
 
 This method returns the database id for a standard name.
 
+B: API change
+
+standardNameByDatabaseId is now case insensitive - that is, if there
+is a databaseId that is used twice (or more) using different casing,
+it will be treated as ambiguous.  Previous versions would have not
+treated these as ambiguous.  This is the price of wanting a case
+insensitive annotation parser.  In the event that a name is provided
+that is ambiguous because of case, if it matches exactly the case of
+one of the possible matches, it will be treated unambiguously.
+
+NB: API change
+
+databaseIdByStandardName is now case insensitive - that is, if there
+is a standard name that is used twice (or more) using different
+casing, it will be treated as ambiguous.  Previous versions would have
+not treated these as ambiguous.  This is the price of wanting a case
+insensitive annotation parser.  In the event that a name is provided
+that is ambiguous because of case, if it matches exactly the case of
+one of the possible matches, it will be treated unambiguously.
+
 Usage:
 
     my $databaseId = $annotationProvider->databaseIdByStandardName($standardName);
@@ -321,6 +382,16 @@ name is ambiguous, then the program will die.  Thus clients should
 call the nameIsAmbiguous() method, prior to using this method.  If the
 name does not map to any databaseId, then undef will be returned.
 
+NB: API change
+
+databaseIdByName is now case insensitive - that is, if there is a name
+that is used twice using different casing, that will be treated as
+ambiguous.  Previous versions would have not treated these as
+ambiguous.  This is the price of wanting a case insensitive annotation
+parser.  In the event that a name is provided that is ambiguous
+because of case, if it matches exactly the case of one of the possible
+matches, it will be treated unambiguously.
+
 Usage:
 
     my $databaseId = $annotationProvider->databaseIdByName($name);
@@ -344,6 +415,14 @@ specified by the given name.  Because a name may be ambiguous, the
 nameIsAmbiguous() method should be called first.  If an ambiguous name
 is supplied, then it will die with an appropriate error message.  If
 the name does not map to a standard name, then undef will be returned.
+
+NB: API change
+
+standardNameByName is now case insensitive - that is, if there is a
+name that is used twice using different casing, that will be treated
+as ambiguous.  Previous versions would have not treated these as
+ambiguous.  This is the price of wanting a case insensitive annotation
+parser.
 
 Usage:
 
@@ -372,6 +451,11 @@ sub nameIsStandardName{
 This method returns a boolean to indicate whether the supplied name is
 used as a standard name.
 
+NB : API change.
+
+This is now case insensitive.  If you provide abC1, and ABc1 is a
+standard name, then it will return true.
+
 Usage :
 
     if ($annotationParser->nameIsStandardName($name)){
@@ -397,6 +481,11 @@ sub nameIsDatabaseId{
 This method returns a boolean to indicate whether the supplied name is
 used as a database id.
 
+NB : API change.
+
+This is now case insensitive.  If you provide abC1, and ABc1 is a
+database id, then it will return true.
+
 Usage :
 
     if ($annotationParser->nameIsDatabaseId($name)){
@@ -411,6 +500,49 @@ Usage :
     $_[0]->__complainStubMethod;
 
 }
+
+############################################################################
+sub nameIsAnnotated{
+############################################################################
+=pod
+
+=head2 nameIsAnnotated
+
+This method returns a boolean to indicate whether the supplied name has any 
+annotations, either when considered as a databaseId, a standardName, or
+an alias.  If an aspect is also supplied, then it indicates whether that
+name has any annotations in that aspect only.
+
+NB: API change.
+
+This is now case insensitive.  If you provide abC1, and ABc1 has
+annotation, then it will return true.
+
+Usage :
+
+    if ($annotationParser->nameIsAnnotated(name => $name)){
+
+	# blah
+
+    }
+
+or:
+
+    if ($annotationParser->nameIsAnnotated(name   => $name,
+					   aspect => $aspect)){
+
+	# blah
+
+    }
+
+
+=cut
+##############################################################################
+
+    $_[0]->__complainStubMethod;
+
+}
+
 
 =pod
 

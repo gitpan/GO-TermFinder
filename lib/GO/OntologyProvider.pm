@@ -4,7 +4,7 @@ package GO::OntologyProvider;
 # Author       : Gavin Sherlock
 # Date Begun   : September 23rd 2002
 
-# $Id: OntologyProvider.pm,v 1.5 2003/10/17 00:33:04 sherlock Exp $
+# $Id: OntologyProvider.pm,v 1.6 2003/11/26 19:30:25 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -34,7 +34,7 @@ package GO::OntologyProvider;
 
 =head1 NAME
 
-GO::OntologyProvider
+GO::OntologyProvider - abstract base class providing API for the provision on Gene Ontology information
 
 =head1 DESCRIPTION
 
@@ -66,7 +66,7 @@ use diagnostics;
 
 use vars qw ($VERSION);
 
-$VERSION = 0.1;
+$VERSION = 0.11;
 
 ############################################################################
 sub allNodes{
