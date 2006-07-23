@@ -1,5 +1,8 @@
 use Test::More;
 
+use strict;
+use warnings;
+
 # This test file will test that all of the pod in any files with a .pm
 # or a .pl extension in the distribution have syntactically correct
 # pod.

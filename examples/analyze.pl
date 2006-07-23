@@ -126,6 +126,19 @@ foreach my $file (@ARGV){
 
     my (@list, @notFound, @ambiguous);
 
+    ######
+    ######
+
+    # NOTE
+    #
+    # Need to eliminate the CategorizeGenes use, as it is not good
+    # practice to throw things out just because they don't match to
+    # things in the annotation file.  See batchGOView.pl for how it
+    # should really be done
+
+    ######
+    ######
+
     CategorizeGenes(annotation  => $annotation,
 		    genes       => \@genes,
 		    ambiguous   => \@ambiguous,

@@ -1,5 +1,32 @@
 Revision history for GO-TermFinder group of modules.
 
+0.71
+
+	- native/Makefile.PL
+
+	Fix for the compilation of the C++ code that carries out the 
+	math.  It is now hard-coded to use g++ as the LD and CC
+	variables, and will complain if it can't find g++.  If it
+	fails, it will tell you what needs editing to hopefully fix
+	it.
+
+	- GO::TermFinder
+
+	Small amount of refactoring on the findTerms() method, to make
+	it easier to follow.  This doesn't change the functionality.
+
+	Added logic such that if a background population is provided,
+	but then the list of genes for which enriched terms are to be
+	found has genes not in that background population, then those
+	genes are discarded from the calculation, and a new method,
+	discardedGenes, allows the identify of those genes to be
+	determined.
+
+	- tests
+
+	Added some new tests, and make sure all code uses strict and
+	warnings
+
 0.70 Thu Nov 18 11:55:10 2004
 
 	- GO::TermFinder
@@ -71,7 +98,7 @@ Revision history for GO-TermFinder group of modules.
 	Added some comments to GO::View, as a start to begin to fully
 	comment all the code - there's a long way to go until I
 	understand fully how GO::View works.  Then I can add
-	postscript output for publication qaulity figures...
+	postscript output for publication quality figures...
 
 0.62 Wed Jul 28 11:46:08 2004
 

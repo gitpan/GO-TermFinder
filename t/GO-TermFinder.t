@@ -1,11 +1,11 @@
 use Test;
-BEGIN { plan tests => 3221, todo => [1112] };
+BEGIN { plan tests => 4842, todo => [1112] };
 
 # File       : GO-TermFinder.t
 # Author     : Gavin Sherlock
 # Date Begun : September 1st 2003
 
-# $Id: GO-TermFinder.t,v 1.7 2004/10/14 22:32:04 ihab Exp $
+# $Id: GO-TermFinder.t,v 1.9 2006/07/23 21:27:19 sherlock Exp $
 
 # This file forms a set of tests for the GO::TermFinder class
 
@@ -377,17 +377,59 @@ my @fdr = $termFinder->findTerms(genes      => [qw(ypl250c
 # terms when we simply have a list of all genes, that we get none -
 # indeed the uncorrected p-values should all be equal to 1.
 
-# for some reason, this run of findTerms takes forever to run, so
-# until I work out why, and optimize it, this test is commented out,
-# except for my private testing, in which I know it works
+my @nonsignificant = $termFinder->findTerms(genes=>[$annotation->allDatabaseIds]);
 
-#my @nonsignificant = $termFinder->findTerms(genes=>[$annotation->allDatabaseIds]);
-#
-#foreach my $hypothesis (@nonsignificant){
-#
-#    ok($hypothesis->{PVALUE}, 1);
-#
-#}
+foreach my $hypothesis (@nonsignificant){
+
+    ok($hypothesis->{PVALUE}, 1);
+
+}
+
+# now we want to test what happens when we use a TermFinder with a
+# defined population, and ask if to findTerms for a list of genes,
+# some of which are not in the population.
+
+# above, we generated @poppvalues, which were the pvalues generated
+# with a list of genes, with all databaseIds as the background.  Now
+# we will generate some new pvalues with that same TermFinder object,
+# but add in a few bogus genes at the end.  The bogus genes should be
+# ignored, and we should get exactly the same result.
+
+my @poppvalues2 = $newTermFinder->findTerms(genes=>[qw(ypl250c
+						       Met11
+						       mxr1
+						       Met17
+						       SAM3
+						       met28
+						       Str3
+						       MMp1
+						       mET1
+						       YIl074c
+						       Mht1
+						       mEt14
+						       Met16
+						       Met3
+						       mET10
+						       ecm17
+						       Met2
+						       MuP1
+						       MeT6
+
+						       BLAH
+						       BLAH2
+						       XXXZZZ
+						       CDCDCDC)]);
+
+my @discardedGenes = $newTermFinder->discardedGenes;
+
+# 4 genes should have been discarded
+
+ok(scalar(@discardedGenes), 4);
+
+# now check that the nodes and pvalues returned look exactly the same
+# as we saw before, when there were no genes to be discarded
+
+&compareHypotheses(\@poppvalues, \@poppvalues2, 1);
 
 ######################################################################################
 sub testHypotheses{
@@ -479,9 +521,17 @@ sub compareHypotheses{
 
  CVS information:
 
- # $Author: ihab $
- # $Date: 2004/10/14 22:32:04 $
+ # $Author: sherlock $
+ # $Date: 2006/07/23 21:27:19 $
  # $Log: GO-TermFinder.t,v $
+ # Revision 1.9  2006/07/23 21:27:19  sherlock
+ # forgot to turn warnings back off
+ #
+ # Revision 1.8  2006/07/23 00:41:40  sherlock
+ # uncommented tests that were previously commented out for performance
+ # reasons, as they seem to run fine.  Also, added test for discarded
+ # genes when using a population.
+ #
  # Revision 1.7  2004/10/14 22:32:04  ihab
  # Removed tests of the internal P value computation; these are now in
  # GO-TermFinder-Native.t and are testing the C++ version.

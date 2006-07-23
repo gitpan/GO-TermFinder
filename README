@@ -1,4 +1,4 @@
-GO-TermFinder version 0.70
+GO-TermFinder version 0.71
 ==========================
 
 This set of modules can be have been developed under the auspices of
@@ -37,26 +37,29 @@ box, a Sun machine etc..  Note, that to install the GO-TermFinder
 distribution after version 0.70, you need a C++ compiler.  We have
 tested installation on MacOSX, Linux, Solaris and Windows (using
 Cygwin), all using GCC as the compiler, and everything seems to work.
-Thus far, we have not been successful installing under ActiveState
-Perl with Microsoft Visual C++, though we have not tried too hard.  If
-you can provide a patch for the Makefile.PL that gets it to work in
-that environment, we'll happily accept it.
+The Makefile.PL in the native directory is hardcoded to look for g++,
+so if you have a different C++ compiler, you will need to edit that
+file.  It should give you an error message indicating this, if unable
+to find g++.  Thus far, we have not been successful installing under
+ActiveState Perl with Microsoft Visual C++, though we have not tried
+too hard.  If you can provide a patch for the Makefile.PL that gets it
+to work in that environment, we'll happily accept it.
 
 To install the software do the following after downloading the
 distribution:
 
 First decompress the gzipped tarfile, e.g:
 
-   tar zxvf GO-TermFinder-0.7.tar.gz
+   tar zxvf GO-TermFinder-0.71.tar.gz
 
 or:
 
-   gunzip GO-TermFinder-0.7.tar.gz
-   tar xvf GO-TermFinder-0.7.tar
+   gunzip GO-TermFinder-0.71.tar.gz
+   tar xvf GO-TermFinder-0.71.tar
 
 Then change into the created directory:
 
-   cd GO-TermFinder-0.7
+   cd GO-TermFinder-0.71
 
 Then actually install it, using the following commands:
 
@@ -214,5 +217,5 @@ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-Copyright (C) 2003-2004 Gavin Sherlock, Stanford University
+Copyright (C) 2003-2006 Gavin Sherlock, Stanford University
 

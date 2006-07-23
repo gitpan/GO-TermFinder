@@ -1,5 +1,7 @@
-
 use Test::More;
+
+use strict;
+use warnings;
 
 eval "use Test::Pod::Coverage 1.00";
 
@@ -10,14 +12,18 @@ plan skip_all => "This is not an error, Test::Pod::Coverage 1.00 required for te
 my @modules = Test::Pod::Coverage::all_modules();
 my @coverage_modules = ();
 
-for my $module (@modules) {
+foreach my $module (@modules) {
+
     push(@coverage_modules, $module) unless $module =~ /.*::Native/;
+
 }
 
 plan tests => scalar(@coverage_modules);
 
-for my $module (@coverage_modules) {
+foreach my $module (@coverage_modules) {
+
     pod_coverage_ok($module);
+
 }
 
 

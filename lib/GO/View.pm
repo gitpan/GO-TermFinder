@@ -159,6 +159,7 @@ The rest of the documentation details each of the public methods.
 =cut
 
 use strict;
+use warnings;
 use GD;
 use GraphViz;
 

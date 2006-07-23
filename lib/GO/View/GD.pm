@@ -36,6 +36,7 @@ and more ......
 =cut
 
 use strict;
+use warnings;
 use GD;
 
 use vars qw ($PACKAGE $VERSION);

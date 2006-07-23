@@ -1,11 +1,5 @@
 Changes
-LICENSE
-MANIFEST
-Makefile.PL
-README
-VERSION
 docs/GO-TermFinder.doc
-examples/GoView.conf
 examples/analyze.pl
 examples/ancestors.pl
 examples/batchGOView.pl
@@ -14,6 +8,7 @@ examples/example_goView.gif
 examples/examples.html
 examples/genes.txt
 examples/genes2.txt
+examples/GoView.conf
 examples/termFinderClient.pl
 lib/GO/AnnotatedGene.pm
 lib/GO/Annotation.pm
@@ -31,20 +26,26 @@ lib/GO/Utils/File.pm
 lib/GO/Utils/General.pm
 lib/GO/View.pm
 lib/GO/View/GD.pm
+LICENSE
+Makefile.PL
+MANIFEST
+META.yml			Module meta-data (added by MakeMaker)
 native/Distributions.cxx
 native/Distributions.hxx
 native/Makefile.PL
+native/Native.i
 native/Native_wrap.cxx
+README
+t/gene_association.sgd
+t/gene_association.test
 t/GO-AnnotatedGene.t
 t/GO-AnnotationProvider-AnnotationParser.t
 t/GO-Node.t
 t/GO-OntologyProvider-OntologyParser.t
+t/GO-TermFinder-Native.t
 t/GO-TermFinder.t
-t/compile.t
-t/gene_association.sgd
-t/gene_association.test
 t/pod-coverage.t
 t/pod.t
 t/process.ontology
-test.pl
-META.yml                                Module meta-data (added by MakeMaker)
+t/strict.t
+VERSION

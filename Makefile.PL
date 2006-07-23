@@ -1,5 +1,8 @@
 use ExtUtils::MakeMaker;
 
+use strict;
+use warnings;
+
 ########################################################################
 #
 # In this script, we control the SWIG autogeneration of C (XS) and
@@ -71,6 +74,7 @@ sub existsAndUpToDate{
   my $destMtime = (stat $destFile)[9];
 
   return $destMtime >= $sourceMtime;
+
 }
 
 ########################################################################
@@ -85,11 +89,11 @@ runSwigAutogeneration() unless
 WriteMakefile(
 	      'NAME'		=> 'GO-TermFinder',
 	      'VERSION_FROM'	=> 'VERSION', # finds $VERSION
-	      'PREREQ_PM'	=> { Storable   => '1.0.1.12',
-				     GD         => 0, # comment this out if you don't want to use GO::View 
-				     GraphViz   => 0, # comment this out if you don't want to use GO::View 
-				     CGI        => 0,  # needed for GO::TermFinderReport::Html
-				     Test::More => 0
+	      'PREREQ_PM'	=> { Storable     => '1.0.1.12',
+				     GD           => 0, # comment this out if you don't want to use GO::View 
+				     GraphViz     => 0, # comment this out if you don't want to use GO::View 
+				     CGI          => 0,  # needed for GO::TermFinderReport::Html
+				     'Test::More' => 0
 				 },
 	      'NO_META'         => 1,
 	      ($] >= 5.005 ?    ## Add these new keywords supported since 5.005

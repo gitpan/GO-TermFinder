@@ -4,11 +4,11 @@ package GO::TermFinder;
 # Author      : Gavin Sherlock
 # Date Begun  : December 31st 2002
 
-# $Id: TermFinder.pm,v 1.40 2004/11/17 21:11:15 sherlock Exp $
+# $Id: TermFinder.pm,v 1.42 2006/07/23 00:56:05 sherlock Exp $
 
 # License information (the MIT license)
 
-# Copyright (c) 2003 Gavin Sherlock; Stanford University
+# Copyright (c) 2003-2006 Gavin Sherlock; Stanford University
 
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation files
@@ -98,7 +98,7 @@ use vars qw ($PACKAGE $VERSION $WARNINGS);
 use GO::Node;
 use GO::TermFinder::Native;
 
-$VERSION = '0.50';
+$VERSION = '0.51';
 $PACKAGE = 'GO::TermFinder';
 
 $WARNINGS = 1; # toggle this to zero if you don't want warnings
@@ -108,6 +108,8 @@ $WARNINGS = 1; # toggle this to zero if you don't want warnings
 my @kRequiredArgs = qw (annotationProvider ontologyProvider aspect);
 
 my $kArgs                    = $PACKAGE.'::__args';
+my $kPopulationNamesHash     = $PACKAGE.'::__populationNamesHash';
+my $kBackgroundDatabaseIds   = $PACKAGE.'::__backgroundDatabaseIds';
 my $kTotalGoNodeCounts       = $PACKAGE.'::__totalGoNodeCounts';
 my $kGoCounts                = $PACKAGE.'::__goCounts';
 my $kGOIDsForDatabaseIds     = $PACKAGE.'::__goidsForDatabaseIds';
@@ -118,6 +120,7 @@ my $kShouldCalculateFDR      = $PACKAGE.'::__shouldCalculateFDR';
 my $kPvalues                 = $PACKAGE.'::__pValues';
 my $kDatabaseId2OrigName     = $PACKAGE.'::__databaseId2OrigName';
 my $kDistributions           = $PACKAGE.'::__distributions';
+my $kDiscardedGenes          = $PACKAGE.'::__discardedGenes';
 
 # the methods by which the p-value can be corrected
 
@@ -163,6 +166,13 @@ interesting ones.  To find significant terms, you need to do it in the
 context of the genes that you assayed, not in the context of all genes
 with annotation.
 
+Note, new in version 0.71, if you provided a population as the
+background distribution from which genes have been drawn, any genes
+provided to the findTerms method that are not in the background
+distribution will be discarded from the calculations.  The identity of
+these genes can be retrieved using the discardedGenes() method, after
+the findTerms() method has been called.
+
 totalNumGenes:
 
 This argument allows a client to indicate that the size of the
@@ -206,7 +216,6 @@ Usage (use a subset of genes as the background population):
 
 =cut
 
-
     my ($class, %args) = @_;
 
     my $self = {};
@@ -247,9 +256,22 @@ sub __checkAndStoreArgs{
 
     }
 
+    # store the population, and also create a hash of the population
+    # names for quick look up
+
     if (exists($args{'population'})){
 
 	$self->{$kArgs}{'population'} = $args{'population'};
+
+	my %population;
+
+	foreach my $name (@{$args{'population'}}){
+
+	    $population{$name} = undef;
+
+	}
+
+	$self->{$kPopulationNamesHash} = \%population;
 
     }
 
@@ -317,9 +339,9 @@ sub __init{
 
 	if ($WARNINGS){
 
-	    print "The annotation provider indicates that there are more genes than the client indicated.\n";
-	    print "The annotation provider indicates there are $populationSize, while the client indicated only ", $self->__totalNumGenes, ".\n";
-	    print "Thus, assuming the correct total number of genes is that indicated by the annotation provider.\n";
+	    print STDERR "The annotation provider indicates that there are more genes than the client indicated.\n";
+	    print STDERR "The annotation provider indicates there are $populationSize, while the client indicated only ", $self->__totalNumGenes, ".\n";
+	    print STDERR "Thus, assuming the correct total number of genes is that indicated by the annotation provider.\n";
 
 	}
 
@@ -364,6 +386,25 @@ sub __init{
     $self->{$kTotalGoNodeCounts}      = $totalNodeCounts;
     $self->{$kTotalNumAnnotatedGenes} = $populationSize;
 
+    # set the discarded genes to be a reference to an empty list
+    # (technically they shouldn't ask to retrieve the discarded genes
+    # before calling findTerms, but this will prevent such behavior
+    # from being fatal
+
+    $self->{$kDiscardedGenes} = []; 
+
+    # store a hash of the databaseIDs that are in the background set of genes
+
+    my %databaseIds;
+
+    foreach my $databaseId (@databaseIds){
+
+	$databaseIds{$databaseId} = undef;
+
+    }
+
+    $self->{$kBackgroundDatabaseIds} = \%databaseIds;
+
     # create a Distributions object, which has C code for all the various 
     # Math that we will do.
 
@@ -398,13 +439,13 @@ Always Present:
 
     PVALUE		  The P-value for having the observed number of
                           annotations that the provided list of genes
-                          has to that node
+                          has to that node.
 
     NUM_ANNOTATIONS       The number of genes within the provided list that
                           are annotated to the node.
 
-    TOTAL_NUM_ANNOTATIONS The number of genes across the genome
-                          annotated to the node
+    TOTAL_NUM_ANNOTATIONS The number of genes in the population (total
+                          or provided) that are annotated to the node.
 
     ANNOTATED_GENES       A hash reference, whose keys are the
                           databaseIds that are annotated to the node,
@@ -524,15 +565,16 @@ FALSE DISCOVERY RATE
 As a way of pre-empting the potential problems of using p-values
 corrected for multiple hypothesis testing, the False Discovery Rate
 can instead be calculated, and you can instead set your cutoff based
-on an acceptable false discovery rate, such as 0.01 (1%), or 0.05 (5%) etc.  Thus,
-the optional argument 'calculateFDR' can be used.  A non-zero value
-means that the False Discovery Rate will be calculated for each node,
-such that you can determine, if you chose your p-value cut-off at that
-node, what the FDR would be.  The FDR is calculated by running 50
-simulations, and counting the average number of times a p-value as
-good or better that a p-value generated from the real data is seen.
-This is used as the numerator.  The denominator is the number of
-p-values in the real data that are as good or better than it.
+on an acceptable false discovery rate, such as 0.01 (1%), or 0.05 (5%)
+etc.  Thus, the optional argument 'calculateFDR' can be used.  A
+non-zero value means that the False Discovery Rate will be calculated
+for each node, such that you can determine, if you chose your p-value
+cut-off at that node, what the FDR would be.  The FDR is calculated by
+running 50 simulations, and counting the average number of times a
+p-value as good or better that a p-value generated from the real data
+is seen.  This is used as the numerator.  The denominator is the
+number of p-values in the real data that are as good or better than
+it.
 
 Usage example - in this example, the default (Bonferroni) correction
 is used to calculate a corrected p-value, and in addition, the False
@@ -565,12 +607,70 @@ Discovery Rate is also calculated:
 
     }
 
-=cut
+If a background population had been provided when the object was
+constructed, you should check to see if any of your genes for which
+you are finding terms were discarded, due to not being found in the background 
+population, e.g.:
 
+    my @pvalueStructures = $termFinder->findTerms(genes        => \@genes,
+                                                  calculateFDR => 1);
+
+    my @discardedGenes = $termFinder->discardedGenes;
+
+    if (@discardedGenes){
+
+        print "The following genes were not considered in the pvalue
+calculations, as they were not found in the provided background
+population.\n\n", join("\n", @discardedGenes), "\n\n";
+
+    }
+
+=cut
 
     my ($self, %args) = @_;
 
     # let's check that they have provided the required information
+
+    $self->__checkAndStoreFindTermsArgs(%args);
+    
+    # now we determine all the count for direct and indirect
+    # annotations for the provided list of genes.
+
+    $self->{$kGoCounts} = $self->__buildHashRefOfAnnotations([$self->genesDatabaseIds]);
+
+    # now we have these counts, and because we determined the counts
+    # of the background distribution during object construction, we
+    # can determine the p-values for the annotations of our list of
+    # genes of interest.
+
+    $self->__calculatePValues;
+
+    # now we want to add in which genes were annotated to each node
+    # so that the client can determine them
+
+    $self->__addAnnotationsToPValues;
+
+    # now what we want to do is calculate pvalues that are corrected
+    # for multiple hypothesis testing, unless it is specifically
+    # requested not to.
+
+    $self->__correctPvalues unless ($self->__correctionMethod eq 'none');    
+
+    # now calculate the False Discovery Rate, if requested to
+
+    $self->__calculateFDR if ($self->__shouldCalculateFDR);
+
+    return $self->__pValues;
+
+}
+
+#####################################################################
+sub __checkAndStoreFindTermsArgs{
+#####################################################################
+# This private method checks the arguments that are passed into the
+# findTerms() method, and stores various variables internally.
+
+    my ($self, %args) = @_;
 
     # check they gave us a list of genes
 
@@ -611,15 +711,108 @@ Discovery Rate is also calculated:
 
     }
 
-    # what we want to do now, is build up an array of identifiers where
-    # that are unambiguous - ie databaseId's
+    # what we want to do now is build up an array of identifiers that
+    # are unambiguous - ie databaseIds
     #
     # This means that when retrieving GOID's, we can always retrieve
     # them by databaseId, which is unambiguous.
 
     my ($databaseIdsRef, $databaseId2OrigNameRef) = $self->__determineDatabaseIdsFromGenes($args{'genes'});
+    
+    # now we want to make sure that if they provided a population as
+    # the background, then all of the provided genes that are being
+    # tested for enriched GO terms are sampled from that population
 
-    # now store them within the self object
+    my @discardedGenes;
+
+    if ($self->__isUsingPopulation){
+
+	my @missingIds;
+
+	# go through each databaseID, and see if it is in the databaseIDs
+	# associated with the GO counts for the background population.  If
+	# it's a fake ID, then see if the original name is in the names
+	# that were passed in.
+	
+	foreach my $databaseId (@{$databaseIdsRef}){
+
+	    # if it's a fake databaseId, we have to see if the orig
+	    # name was in the provided population, otherwise, if it's
+	    # a real databaseId, check that the databaseId is in the
+	    # background
+
+	    if ((
+
+		 $databaseId =~ /^$kFakeIdPrefix/o &&
+		 !$self->__origNameInPopulation($databaseId2OrigNameRef->{$databaseId}))
+
+		||
+
+		!$self->__databaseIdIsInBackground($databaseId)){
+
+		push(@missingIds, $databaseId);
+
+	    }
+
+	}
+
+	# now see if we have any missing names
+
+	# We will print a warning that genes were discarded, but e
+	# also provide an API for them to retrieve the names of genes
+	# that were discarded.
+
+	if (@missingIds){
+
+	    if ($WARNINGS){
+
+		print STDERR "\nThe following names in the provided list of genes do not have a\n",
+
+		"counterpart in the background population that you provided.\n",
+
+		"These genes will not be used in the analysis for enriched GO terms.\n\n";
+
+		foreach my $databaseId (@missingIds){
+
+		    print $databaseId2OrigNameRef->{$databaseId}, "\n";		    
+
+		}
+
+		print "\n";
+
+	    }
+
+	    # now we have to actually remove them from the list of
+	    # considered genes
+
+	    # create a dummy hash of the databaseIds, delete the
+	    # elements, and then assign the remaining keys back to the
+	    # $databaseIdsRef
+
+	    # we'll also remember it
+
+	    my %dummyDatabaseIdsHash = %{$databaseId2OrigNameRef};
+
+	    foreach my $databaseId (@missingIds){
+
+		push (@discardedGenes, $databaseId2OrigNameRef->{$databaseId});
+
+		delete $dummyDatabaseIdsHash{$databaseId};
+
+	    }
+
+	    $databaseIdsRef = [keys %dummyDatabaseIdsHash]
+
+	}
+
+    }
+
+    # now remember the genes that were discarded
+
+    $self->__setDiscardedGenes(\@discardedGenes);
+
+    # now store them the databaseIDs for the genes that can be used to
+    # determine enriched GO terms in the self object
 
     $self->{$kDatabaseIds} = $databaseIdsRef;
 
@@ -647,40 +840,60 @@ Discovery Rate is also calculated:
 
     }
 
-    # now we determine all the count for direct and indirect
-    # annotations for the provided list of genes.
 
-    $self->{$kGoCounts} = $self->__buildHashRefOfAnnotations([$self->genesDatabaseIds]);
-
-    # now we have these counts, and because we determined the counts
-    # of the background distribution during object construction, we
-    # can determine the p-values for the annotations of our list of
-    # genes of interest.
-
-    $self->__calculatePValues;
-
-    # now we want to add in which genes were annotated to each node
-    # so that the client can determine them
-
-    $self->__addAnnotationsToPValues;
-
-    # now what we want to do is calculate pvalues that are corrected
-    # for multiple hypothesis testing, unless it is specifically
-    # requested not to.
-
-    $self->__correctPvalues unless ($self->__correctionMethod eq 'none');    
-
-    # now calculate the False Discovery Rate, if requested to
-
-    $self->__calculateFDR if ($self->__shouldCalculateFDR);
-
-    return $self->__pValues;
 
 }
+
+#####################################################################
+sub discardedGenes {
+#####################################################################
+=pod
+
+=head2 discardedGenes
+
+This method returns an array of genes which were discarded from the
+pvalue calculations, because they could not be found in the background
+population.  It should only be called after findTerms.  It will either
+return an empty list, if no genes were discarded, or an array of genes
+that were discarded.
+
+Usage:
+
+    my @pvalueStructures = $termFinder->findTerms(genes        => \@genes,
+                                                  calculateFDR => 1);
+
+    my @discardedGenes = $termFinder->discardedGenes;
+
+    if (@discardedGenes){
+
+        print "The following genes were not considered in the pvalue
+calculations, as they were not found in the provided background
+population.\n\n", join("\n", @discardedGenes), "\n\n";
+
+    }
+
+=cut
+
+    return @{$_[0]->{$kDiscardedGenes}};
+
+}
+
 
 #
 # PRIVATE INSTANCE METHODS
 #
+
+#####################################################################
+sub __databaseIdIsInBackground{
+#####################################################################
+# This private method will return a Boolean to indicate whether the
+# supplied databaseId is in the set of databaseIds determined for the
+# background set of genes.  Note, it does not check if the databaseId
+# is a fake one, so the client should do that if it needs to
+
+    return exists $_[0]->{$kBackgroundDatabaseIds}{$_[1]};
+
+}
 
 #####################################################################
 sub __isUsingPopulation{
@@ -699,6 +912,27 @@ sub __population{
 # that were passed in to be used as a background population
 
     return $_[0]->{$kArgs}{population};
+
+}
+
+#####################################################################
+sub __origNameInPopulation{
+#####################################################################
+# This private method returns a Boolean to indicate whether the
+# provided name is in the list of names that were provided as a
+# background population
+
+    return exists $_[0]->{$kPopulationNamesHash}{$_[1]};
+
+}
+
+#####################################################################
+sub __setDiscardedGenes{
+#####################################################################
+# This private method will store the passed in array reference, which
+# points to a list of genes that had to be discarded.
+
+    $_[0]->{$kDiscardedGenes} = $_[1];
 
 }
 
@@ -801,10 +1035,10 @@ sub __shouldCalculateFDR{
 #####################################################################
 sub __determineDatabaseIdsFromGenes{
 #####################################################################
-# This method determines a list of databaseIds for the list of
-# supplied list of genes for which the client wants to find GO terms.
-# It then returns a reference to that list, and a reference to a hash
-# that maps the databaseIds to the originally supplied name
+# This method determines a list of databaseIds for a list of genes
+# passed in by reference.  It then returns a reference to that list,
+# and a reference to a hash that maps the databaseIds to the
+# originally supplied name
 #
 # If more than one gene maps to the same databaseId, then the
 # databaseId is only put in the list once, and a warning is printed.
@@ -824,10 +1058,14 @@ sub __determineDatabaseIdsFromGenes{
 
     foreach my $gene (@{$genesRef}){
 
+	# strip leading and trailing spaces
+
 	$gene =~ s/^\s+//;
 	$gene =~ s/\s+$//;
 
 	next if $gene eq ""; # skip empty names
+
+	# skip and warn if we've already seen the gene
 
 	if (exists ($genes{$gene})){
 
@@ -844,22 +1082,7 @@ sub __determineDatabaseIdsFromGenes{
 
 	}
 
-	#######
-	#######
-
-	# NOTE
-
-	# We should put in some kind of check when they are using a
-	# background population that each gene in the supplied list of
-	# interest has a counterpart in the background population.  At
-	# least in the case where a databaseId can be got, there
-	# should be a counterpart in the background population that
-	# correponds to the same databaseId.  If one can't be got,
-	# it's difficult to know if they just used a different
-	# synonym.
-
-	#######
-	#######
+	# determine if the gene is ambiguous
 
 	if ($self->__annotationProvider->nameIsAmbiguous($gene)){
 
@@ -946,6 +1169,8 @@ sub __determineDatabaseIdsFromGenes{
 	    $duplicates{$databaseId}{$gene} = undef;
 
 	}
+
+	# remember the databaseId and gene, in case we see them again
 
 	$databaseIds{$databaseId} = $gene if (defined ($databaseId));
 	$genes{$gene}             = undef;
@@ -1055,7 +1280,7 @@ sub __allGOIDsForDatabaseId{
 
 		if ($WARNINGS){
 
-		    print STDERR "Warning : $goid, used to annotate $databaseId with an aspect of ".$self->aspect.", does not appear in the provided ontology.\n";
+		    print STDERR "\nWarning : $goid, used to annotate $databaseId with an aspect of ".$self->aspect.", does not appear in the provided ontology.\n";
 		    
 		}
 		    
