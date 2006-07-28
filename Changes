@@ -1,6 +1,24 @@
 Revision history for GO-TermFinder group of modules.
 
-0.71
+0.72 Thu Jul 27 16:44:14 2006
+
+	- GO::TermFinder
+
+	Forgot to have the __saveVariables method save the discarded
+	genes when simulations were being run, or the FDR was being
+	calculated.  Consequently, this information was being lost if
+	either FDR or simulations were requested.  This is now fixed.
+
+	Found a minor buglet, concerning how genes were selected for
+	simulations if a population had been used.  This didn't affect
+	the actual results, but now is *slightly* faster.
+
+	- General
+
+	Started using the Test::Spelling module locally, and it found
+	a few typos that have been corrected.
+
+0.71 Sun Jul 23 16:15:20 2006
 
 	- native/Makefile.PL
 

@@ -339,7 +339,7 @@ Usage:
 Optional arguments:
 
 'date', which is a string indicating the date, otherwise the current
-date will be determineed and used.  The date will be printed in red in
+date will be determined and used.  The date will be printed in red in
 the lower right hand corner.
 
 'text', which is a string that can be used to label the image.  This will 

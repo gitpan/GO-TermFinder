@@ -15,8 +15,8 @@ genes that were used to generate the terms, and the number of genes
 that were said to be in the genome.  It will then generate an html
 table that summarizes those results.  Optionally, filehandle, p-value
 cutoff, gene URL, and GOID URL arguments may also be passed in.  Url
-links should have the string <REPLACE_THIS> to indicate where the
-genename, or GOID should be put.
+links should have the string <REPLACE_THIS> to indicate where the gene
+name, or GOID should be put.
 
 =head1 SYNOPSIS
 
@@ -115,31 +115,30 @@ Usage:
 
 Required arguments:
 
-pvalues   :  A reference to the array returned by the findTerms() method of GO::TermFinder
+    pvalues   :  A reference to the array returned by the findTerms() method of GO::TermFinder
 
-aspect    :  The aspect of the Gene Ontology for which terms were found (C, F or P)
+    aspect    :  The aspect of the Gene Ontology for which terms were found (C, F or P)
 
-numGenes  :  The number of genes that were in the list passed to the findTerms method
+    numGenes  :  The number of genes that were in the list passed to the findTerms method
 
-totalNum  :  The total number of genes that were indicated to be in the genome for finding terms.
+    totalNum  :  The total number of genes that were indicated to be in the genome for finding terms.
 
 Optional arguments:
 
 
-fh       : A reference to a file handle to which the table should be
-           printed.  Defaults to standard out.
+    fh       : A reference to a file handle to which the table should be
+               printed.  Defaults to standard out.
 
-pvlaueCutOff   : The p-value cutoff, above which p-values and associated
-                 information will not be printed.  Default is no cutoff.
+    pvalueCutOff   : The p-value cutoff, above which p-values and associated
+                     information will not be printed.  Default is no cutoff.
 
-geneUrl  : A url to which you want genes linked.  Must contain the
-           text '<REPLACE_THIS>', which will be replaced with the
-           gene name.
+    geneUrl  : A url to which you want genes linked.  Must contain the
+               text '<REPLACE_THIS>', which will be replaced with the
+               gene name.
 
-goidUrl  : A url to which you want the GOIDs linked.  Must contain the
-           text '<REPLACE_THIS>', which will be replaced with the
-           goid.
-
+    goidUrl  : A url to which you want the GOIDs linked.  Must contain the
+               text '<REPLACE_THIS>', which will be replaced with the
+               goid.
 
 =cut
 

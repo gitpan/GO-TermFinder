@@ -5,7 +5,7 @@ package GO::OntologyProvider::OntologyParser;
 # Date Begun : Summer 2001
 # Rewritten  : September 29th 2002
 
-# $Id: OntologyParser.pm,v 1.17 2004/05/05 22:20:47 sherlock Exp $
+# $Id: OntologyParser.pm,v 1.18 2006/07/28 00:03:27 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -638,7 +638,7 @@ sub serializeToDisk {
 #
 # This method currently causes a segfault on MacOSX (at least 10.1.5
 # -> 10.2.3), with perl 5.6, and Storable 1.0.14, when trying to store
-# the process ontology.  This failure occirs using either store, or
+# the process ontology.  This failure occurs using either store, or
 # nstore, and is manifested by a segmentation fault.  It has not been
 # investigated whether this is a perl problem, or a Storable problem
 # (which has large amounts of C-code).  This does not cause a
@@ -767,7 +767,7 @@ filename would be used, if none were provided.
 
 This method currently causes a segfault on MacOSX (at least 10.1.5 ->
 10.2.3), with perl 5.6, and Storable 1.0.14, when trying to store the
-process ontology.  This failure occirs using either store, or nstore,
+process ontology.  This failure occurs using either store, or nstore,
 and is manifested by a segmentation fault.  It has not been
 investigated whether this is a perl problem, or a Storable problem
 (which has large amounts of C-code).  This does not cause a

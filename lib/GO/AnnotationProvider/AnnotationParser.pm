@@ -5,7 +5,7 @@ package GO::AnnotationProvider::AnnotationParser;
 # Date Begun : Summer 2001
 # Rewritten  : September 25th 2002
 
-# $Id: AnnotationParser.pm,v 1.32 2004/07/28 17:12:10 sherlock Exp $
+# $Id: AnnotationParser.pm,v 1.33 2006/07/28 00:02:14 sherlock Exp $
 
 # Copyright (c) 2003 Gavin Sherlock; Stanford University
 
@@ -80,7 +80,7 @@ Lines beginning with a '!' character are comment lines.
 
     Column  Cardinality   Contents          
     ------  -----------   -------------------------------------------------------------
-        0       1         Database abbreviation for the source of annotation (eg SGD)
+        0       1         Database abbreviation for the source of annotation (e.g. SGD)
         1       1         Database identifier of the annotated entity
         2       1         Standard name of the annotated entity
         3       0,1       NOT (if a gene is specifically NOT annotated to the term)
@@ -781,7 +781,7 @@ sub nameIsAmbiguous{
 =head2 nameIsAmbiguous
 
 This public method returns a boolean to indicate whether a name is
-ambiguous, ie whether the name might map to more than one entity (and
+ambiguous, i.e. whether the name might map to more than one entity (and
 therefore more than one databaseId).  
 
 NB: API change:
@@ -871,7 +871,7 @@ there is a name that is used twice using different casing, that will
 be treated as ambiguous.  Previous versions would have not treated
 these as ambiguous.  However, if the name provided is of the exact
 casing as a name that appeared only once with that exact casing, then
-it is treated as unabiguous. This is the price of wanting a case
+it is treated as unambiguous. This is the price of wanting a case
 insensitive annotation parser...
 
 Usage:
@@ -1037,7 +1037,7 @@ sub _goIdsByMappedDatabaseId{
 # If no annotations are associated with that databaseId in that
 # aspect, then a reference to an empty array will be returned.  If the
 # databaseId is not recognized, then undef will be returned.  The
-# supplied databaseId must NOT be ambiguous, ie it must be a real
+# supplied databaseId must NOT be ambiguous, i.e. it must be a real
 # databaseId known to exist.  If it is possibly ambiguous, use the
 # goIdsByDatabaseId method instead.
 #
@@ -1384,11 +1384,12 @@ sub databaseIdByName{
 
 =head2 databaseIdByName
 
-This method returns the database id for any identifier for a gene (eg
-by databaseId itself, by standard name, or by alias).  If the used
-name is ambiguous, then the program will die.  Thus clients should
-call the nameIsAmbiguous() method, prior to using this method.  If the
-name does not map to any databaseId, then undef will be returned.
+This method returns the database id for any identifier for a gene
+(e.g. by databaseId itself, by standard name, or by alias).  If the
+used name is ambiguous, then the program will die.  Thus clients
+should call the nameIsAmbiguous() method, prior to using this method.
+If the name does not map to any databaseId, then undef will be
+returned.
 
 NB: API change
 
@@ -1824,8 +1825,11 @@ Usage:
 CVS info is listed here:
 
  # $Author: sherlock $
- # $Date: 2004/07/28 17:12:10 $
+ # $Date: 2006/07/28 00:02:14 $
  # $Log: AnnotationParser.pm,v $
+ # Revision 1.33  2006/07/28 00:02:14  sherlock
+ # fixed a couple of typos
+ #
  # Revision 1.32  2004/07/28 17:12:10  sherlock
  # bumped version
  #

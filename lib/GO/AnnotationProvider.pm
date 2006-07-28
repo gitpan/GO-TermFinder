@@ -4,7 +4,7 @@ package GO::AnnotationProvider;
 # Author      : Gavin Sherlock
 # Date Begun  : September 26th 2002
 
-# $Id: AnnotationProvider.pm,v 1.12 2003/12/03 02:39:42 sherlock Exp $
+# $Id: AnnotationProvider.pm,v 1.13 2006/07/27 23:59:48 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -166,7 +166,7 @@ there is a name that is used twice using different casing, that will
 be treated as ambiguous.  Previous versions would have not treated
 these as ambiguous.  However, if the name provided is of the exact
 casing as a name that appeared only once with that exact casing, then
-it is treated as unabiguous. This is the price of wanting a case
+it is treated as unambiguous. This is the price of wanting a case
 insensitive annotation provider...
 
 Usage:
@@ -197,7 +197,7 @@ different genes, then blah1 would be ambiguous.
 
 Usage:
 
-    my @ambiguousNames = $annotationProvider->ambiguousNames();
+    my @ambiguousNames = $annotationProvider->ambiguousNames;
 
 =cut
 
@@ -376,7 +376,7 @@ sub databaseIdByName{
 
 =head2 databaseIdByName
 
-This method returns the database id for any identifier for a gene (eg
+This method returns the database id for any identifier for a gene (e.g.
 by databaseId itself, by standard name, or by alias).  If the used
 name is ambiguous, then the program will die.  Thus clients should
 call the nameIsAmbiguous() method, prior to using this method.  If the
@@ -561,7 +561,7 @@ This method returns the name of the annotating authority of the annotations.
 
 Usage :
 
-    my $databaseName = $annotationProvider->databaseName();
+    my $databaseName = $annotationProvider->databaseName;
 
 =cut
 ##############################################################################
@@ -584,7 +584,7 @@ one aspect of GO.
 
 Usage:
 
-    my $numAnnotatedGenes = $annotationProvider->numAnnotatedGenes();
+    my $numAnnotatedGenes = $annotationProvider->numAnnotatedGenes;
 
     my $numAnnotatedGenes = $annotationProvider->numAnnotatedGenes($aspect);
 
@@ -606,7 +606,7 @@ This public method returns an array of all the database identifiers
 
 Usage:
 
-    my @databaseIds = $annotationProvider->allDatabaseIds();
+    my @databaseIds = $annotationProvider->allDatabaseIds;
 
 =cut
 ##############################################################################
@@ -627,7 +627,7 @@ This public method returns an array of all standard names.
 
 Usage:
 
-    my @standardNames = $annotationProvider->allStandardNames();
+    my @standardNames = $annotationProvider->allStandardNames;
 
 =cut
 ##############################################################################

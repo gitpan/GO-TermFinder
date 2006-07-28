@@ -1,11 +1,11 @@
 use Test;
-BEGIN { plan tests => 4842, todo => [1112] };
+BEGIN { plan tests => 4844, todo => [1112] };
 
 # File       : GO-TermFinder.t
 # Author     : Gavin Sherlock
 # Date Begun : September 1st 2003
 
-# $Id: GO-TermFinder.t,v 1.9 2006/07/23 21:27:19 sherlock Exp $
+# $Id: GO-TermFinder.t,v 1.10 2006/07/28 00:02:46 sherlock Exp $
 
 # This file forms a set of tests for the GO::TermFinder class
 
@@ -431,6 +431,75 @@ ok(scalar(@discardedGenes), 4);
 
 &compareHypotheses(\@poppvalues, \@poppvalues2, 1);
 
+# also need to test that the genes are correctly discarded when we 
+# are doing a correction or calculating the FDR
+
+my @poppvalues3 = $newTermFinder->findTerms(genes=>[qw(ypl250c
+						       Met11
+						       mxr1
+						       Met17
+						       SAM3
+						       met28
+						       Str3
+						       MMp1
+						       mET1
+						       YIl074c
+						       Mht1
+						       mEt14
+						       Met16
+						       Met3
+						       mET10
+						       ecm17
+						       Met2
+						       MuP1
+						       MeT6
+
+						       BLAH
+						       BLAH2
+						       XXXZZZ
+						       CDCDCDC)],
+
+					    calculateFDR => 1);
+
+my @discardedGenes2 = $newTermFinder->discardedGenes;
+
+# 4 genes should have been discarded
+
+ok(scalar(@discardedGenes), 4);
+ 
+my @poppvalues4 = $newTermFinder->findTerms(genes=>[qw(ypl250c
+						       Met11
+						       mxr1
+						       Met17
+						       SAM3
+						       met28
+						       Str3
+						       MMp1
+						       mET1
+						       YIl074c
+						       Mht1
+						       mEt14
+						       Met16
+						       Met3
+						       mET10
+						       ecm17
+						       Met2
+						       MuP1
+						       MeT6
+
+						       BLAH
+						       BLAH2
+						       XXXZZZ
+						       CDCDCDC)],
+
+					    correction => 'simulation');
+
+my @discardedGenes3 = $newTermFinder->discardedGenes;
+
+# 4 genes should have been discarded
+
+ok(scalar(@discardedGenes), 4);
+
 ######################################################################################
 sub testHypotheses{
 ######################################################################################
@@ -522,8 +591,12 @@ sub compareHypotheses{
  CVS information:
 
  # $Author: sherlock $
- # $Date: 2006/07/23 21:27:19 $
+ # $Date: 2006/07/28 00:02:46 $
  # $Log: GO-TermFinder.t,v $
+ # Revision 1.10  2006/07/28 00:02:46  sherlock
+ # added new tests to make sure discarded genes are not lost when
+ # calculating FDR or running simulations.
+ #
  # Revision 1.9  2006/07/23 21:27:19  sherlock
  # forgot to turn warnings back off
  #

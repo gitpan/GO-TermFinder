@@ -4,7 +4,7 @@ package GO::TermFinder;
 # Author      : Gavin Sherlock
 # Date Begun  : December 31st 2002
 
-# $Id: TermFinder.pm,v 1.42 2006/07/23 00:56:05 sherlock Exp $
+# $Id: TermFinder.pm,v 1.43 2006/07/28 00:01:36 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -48,7 +48,7 @@ using the hypergeometric distribution as the probability of x or more
 out of n genes having a given annotation, given that G of N have that
 annotation in the genome in general.  We chose the hypergeometric
 distribution (sampling without replacement) since it is more accurate,
-though slower to calculate, than the binomial distibution (sampling
+though slower to calculate, than the binomial distribution (sampling
 with replacement).
 
 In addition, a corrected p-value can be calculated, to correct for
@@ -64,14 +64,14 @@ liberal, rather than conservative, as might be expected.  Finally, the
 False Discovery Rate can also be calculated.
 
 The general idea is that a list of genes may have been identified for
-some reason, e.g. they are coregulated, and TermFinder can be used to
+some reason, e.g. they are co-regulated, and TermFinder can be used to
 find out if any nodes annotate the set of genes to a level which is
 extremely improbable if the genes had simply been picked at random.
 
 =head1 TODO
 
-1.  May want the client to decide the behaviour for ambiguous names,
-    rather than having it hard coded (eg always ignore; use if
+1.  May want the client to decide the behavior for ambiguous names,
+    rather than having it hard coded (e.g. always ignore; use if
     standard name (current implementation); use all databaseIds for
     the ambiguous name; decide on a case by case basis (potentially
     useful if running on command line)).
@@ -98,7 +98,7 @@ use vars qw ($PACKAGE $VERSION $WARNINGS);
 use GO::Node;
 use GO::TermFinder::Native;
 
-$VERSION = '0.51';
+$VERSION = '0.52';
 $PACKAGE = 'GO::TermFinder';
 
 $WARNINGS = 1; # toggle this to zero if you don't want warnings
@@ -562,7 +562,7 @@ The default for this argument, if not provided, is bonferroni.
 
 FALSE DISCOVERY RATE
 
-As a way of pre-empting the potential problems of using p-values
+As a way of preempting the potential problems of using p-values
 corrected for multiple hypothesis testing, the False Discovery Rate
 can instead be calculated, and you can instead set your cutoff based
 on an acceptable false discovery rate, such as 0.01 (1%), or 0.05 (5%)
@@ -774,11 +774,11 @@ sub __checkAndStoreFindTermsArgs{
 
 		foreach my $databaseId (@missingIds){
 
-		    print $databaseId2OrigNameRef->{$databaseId}, "\n";		    
+		    print STDERR $databaseId2OrigNameRef->{$databaseId}, "\n";		    
 
 		}
 
-		print "\n";
+		print STDERR "\n";
 
 	    }
 
@@ -1147,7 +1147,7 @@ sub __determineDatabaseIdsFromGenes{
 		# Now we need to deal with the lack of databaseId
 		# We'll simply create a fake one, that we can easily
 		# recognize later, so we can deal with it accordingly
-		
+
 		$databaseId = $kFakeIdPrefix.$gene;
 
 	    }
@@ -1649,7 +1649,7 @@ sub __saveVariables{
     my %variables;
 
     my @keys = ($kCorrectionMethod, $kShouldCalculateFDR, $kDatabaseIds, 
-		$kDatabaseId2OrigName, $kGoCounts, $kPvalues);
+		$kDatabaseId2OrigName, $kGoCounts, $kPvalues, $kDiscardedGenes);
 
     foreach my $key (@keys){
 
@@ -1688,7 +1688,7 @@ sub __samplingPopulation{
     # we will need to pick genes randomly from the background
     # population.  Note that population may be larger than the
     # databaseIds that are referenced in the annotations file - if so,
-    # we have to be able to randonly select unannotated genes too
+    # we have to be able to randomly select unannotated genes too
 
     # alternatively, the user may have specified a population of genes
     # that define the background - in which case we should pick only
@@ -1698,9 +1698,7 @@ sub __samplingPopulation{
 
     if ($self->__isUsingPopulation){
 
-	my ($databaseIdsRef, $databaseId2OrigNameRef) = $self->__determineDatabaseIdsFromGenes($self->__population);
-
-	@names = @{$databaseIdsRef};	
+	@names = @{$self->__population};
 
     }else{
 

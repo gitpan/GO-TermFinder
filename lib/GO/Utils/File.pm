@@ -6,7 +6,7 @@ GO::Utils::File - simply utility module for dealing with file parsing
 
 =head1 SYNOPSIS
 
-GO::Utils::File provides a single exported funtion for retrieving the
+GO::Utils::File provides a single exported function for retrieving the
 lines out of a file, that can be easily reused.
 
 It will simply expect one gene name to exist per line.  It should deal

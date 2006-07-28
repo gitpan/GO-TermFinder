@@ -4,7 +4,7 @@ package GO::Node;
 # Author      : Gavin Sherlock
 # Date Begun  : December 23rd 2002
 
-# $Id: Node.pm,v 1.9 2003/12/03 02:35:38 sherlock Exp $ 
+# $Id: Node.pm,v 1.10 2006/07/28 00:00:23 sherlock Exp $ 
 
 # License information (the MIT license)
 
@@ -103,7 +103,7 @@ sub new{
 ##################################################################
 # This is the constructor for the Node object
 #
-# At a minumum, the constructor expects, as named arguments, a GOID
+# At a minimum, the constructor expects, as named arguments, a GOID
 # and a GO term, with which to create the node object.
 #
 # Usage:
@@ -285,7 +285,7 @@ sub pathsToRoot{
 # root.  The self node is not included in the paths, but the root node
 # is.  The first node in each array is the most distant ancestor (the
 # root), the last node is an immediate parent.  If there are no paths
-# to the root (ie it is the root node) then an empty array will be
+# to the root (i.e. it is the root node) then an empty array will be
 # returned.
 #
 # Usage:
@@ -635,7 +635,7 @@ sub isADescendantOf{
 sub isLeaf{
 ##################################################################
 # This method returns a boolean to indicate whether a node is a leaf
-# in the ontology (ie it has no children).
+# in the ontology (i.e. it has no children).
 #
 # Usage:
 #
@@ -653,7 +653,7 @@ sub isLeaf{
 sub isRoot{
 #####################################################################
 # This method returns a boolean to indicate whether a node is the root
-# in the ontology (ie it has no parents).
+# in the ontology (i.e. it has no parents).
 #
 # Usage:
 #
@@ -722,7 +722,7 @@ __END__
 
 =head2 new
 
-This is the constructor for the Node object At a minumum, the
+This is the constructor for the Node object At a minimum, the
 constructor expects, as named arguments, a GOID and a GO term, with
 which to create the node object.
 
@@ -761,7 +761,7 @@ the self node, but should contain the root node.  The last entry in
 the array is expected to be an immediate parent of the self node,
 while the first entry is expected to be the root node itself.  This
 method will NOT check to see if the supplied path has not already been
-added.  It is the Node Factorys responsibility to only add a unique
+added.  It is the Node Factory's responsibility to only add a unique
 path once.  Furthermore, it will not check whether there is
 consistency between addedPaths and addedParents (this can be done
 using the isValid method though).
@@ -809,7 +809,7 @@ which contains the nodes in a path between the self node and the root.
 The self node is not included in the paths, but the root node is.  The
 first node in each array is the most distant ancestor (the root), the
 last node is an immediate parent.  If there are no paths to the root
-(ie it is the root node) then an empty array will be returned.
+(i.e. it is the root node) then an empty array will be returned.
 
 Usage:
 
@@ -939,7 +939,7 @@ Usage:
 =head2 isLeaf
 
 This method returns a boolean to indicate whether a node is a leaf
-in the ontology (ie it has no children).
+in the ontology (i.e. it has no children).
 
 Usage:
 
@@ -952,7 +952,7 @@ Usage:
 =head2 isRoot
 
 This method returns a boolean to indicate whether a node is the root
-in the ontology (ie it has no parents).
+in the ontology (i.e. it has no parents).
 
 Usage:
 
