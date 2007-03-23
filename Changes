@@ -1,5 +1,61 @@
 Revision history for GO-TermFinder group of modules.
 
+0.80 Thu Mar 22 18:45:29 2007
+
+	- GO::OntologyProvider::OboParser
+
+	New module, contributed by Shuai Weng of SGD.  This allows you
+	to use the .obo files instead of the .ontology files.  The
+	.ontology files have been deprecated for a while, and are much
+	bigger than the .obo version, as they contain redundant
+	information.  The ontology parsing module still ships, but
+	will be deprecated in future versions.  The test suite for the
+	ontology parser no longer ships with the distribution, though
+	I still test it locally.
+
+	Note, the API for the OboParser is slightly different, in that
+	you have to provide the aspect of the ontology that you want
+	(P, C or F), which was not the case when parsing the .ontology
+	files.
+
+	All the example code in the examples/ directory has been
+	updated to work with the obo parser.
+
+	- GO::TermFinder
+
+	Updated to deal with the loss of the 'unknown' nodes in the
+	ontology.  With the removal of those nodes, direct annotation
+	to the aspect node, such as biological_process, is meaningful.
+	Thus, it now tests for significance for genes annotated
+	directly to the aspect nodes, ignoring indirect annotations to
+	those nodes.
+
+	Added an additional check, such that if you provide a
+	background population, but none of the genes in your list of
+	interest are in that population, it dies with a useful error
+	message (as opposed to the previously useless one).
+
+	Corrected a bug in the Bonferroni correction, where it was too
+	conservative - not sure what I was thinking.
+
+	- GO::TermFinderReport::Text
+
+	Can now print out the results in tabular form, instead of the
+	usual text version, to help with automated analyses.  Thanks
+	to Noah Zimmerman for the code changes.
+
+	- Code Quality
+
+	I have started to use Perl::Critic locally, and all the code
+	at least passes level 5.  Future revisions will pass harsher
+	review (with some rules commented out!).
+
+	- Compilation
+
+	The native/Makefile.PL has been modified to hopefully make it
+	compile correctly under Cygwin - thanks to Noah Zimmerman for help
+	with testing.
+
 0.72 Thu Jul 27 16:44:14 2006
 
 	- GO::TermFinder

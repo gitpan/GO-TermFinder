@@ -1,3 +1,9 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use diagnostics;
+
 use Test;
 BEGIN { plan tests => 15 };
 
@@ -5,13 +11,9 @@ BEGIN { plan tests => 15 };
 # Author     : Ihab A.B. Awad
 # Date Begun : October 13th 2004
 
-# $Id: GO-TermFinder-Native.t,v 1.1 2004/10/14 22:32:33 ihab Exp $
+# $Id: GO-TermFinder-Native.t,v 1.2 2007/03/18 01:37:14 sherlock Exp $
 
 # This file tests the native math functions in module GO::TermFinder::Native.
-
-use strict;
-use warnings;
-use diagnostics;
 
 use GO::TermFinder::Native;
 

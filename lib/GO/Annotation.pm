@@ -4,7 +4,7 @@ package GO::Annotation;
 # Author     : Gavin Sherlock
 # Date Begun : March 9th 2003
 
-# $Id: Annotation.pm,v 1.1 2003/10/17 15:37:05 sherlock Exp $
+# $Id: Annotation.pm,v 1.2 2007/03/18 02:53:27 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -36,7 +36,9 @@ use diagnostics;
 
 use vars qw ($VERSION);
 
-$VERSION = 0.1;
+$VERSION = 0.11;
+
+1; # to make perl happy
 
 =pod
 

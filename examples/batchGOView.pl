@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Id: batchGOView.pl,v 1.5 2004/07/28 17:28:40 sherlock Exp $
+# $Id: batchGOView.pl,v 1.6 2007/03/18 02:20:34 sherlock Exp $
 
 # Date   : 4th December 2003
 # Author : Gavin Sherlock
@@ -35,6 +35,8 @@ use warnings;
 
 use CGI qw/:all :html3/;
 
+use IO::File;
+
 =head1 NAME
 
 batchGOView.pl - batch processor for creating visual output from GO::TermFinder
@@ -67,7 +69,7 @@ clicked on link.
 
 use GO::TermFinder;
 use GO::AnnotationProvider::AnnotationParser;
-use GO::OntologyProvider::OntologyParser;
+use GO::OntologyProvider::OboParser;
 use GO::View;
 use GO::TermFinderReport::Html;
 use GO::Utils::File    qw (GenesFromFile);
@@ -87,11 +89,8 @@ genes, with one gene per line.  It will findTerms for the lists of
 genes in each of the GO aspects, and then generate an html page with a
 GO::View graphic that summarize the result.
 
-It will use the first supplied argument as the annotation file, the
-second argument ontology file, the third argument as the aspect of the
-ontology (P, C, or F), and the fourth argument as the expected number
-of genes within the organism, and all subsequent files as ones
-containing lists of genes.
+It will use the first supplied argument as the configuration file, and
+all subsequent files as ones containing lists of genes.
 
 Usage:
 
@@ -118,7 +117,8 @@ my $conf = &ReadConfFile($confFile);
 
 # now set up the objects we need
 
-my $ontology = GO::OntologyProvider::OntologyParser->new(ontologyFile => $conf->{'ontologyFile'});
+my $ontology = GO::OntologyProvider::OboParser->new(ontologyFile => $conf->{'ontologyFile'},
+						    aspect       => $conf->{'aspect'});
 
 my $annotation = GO::AnnotationProvider::AnnotationParser->new(annotationFile=>$conf->{'annotationFile'});
 
@@ -135,9 +135,9 @@ my $report  = GO::TermFinderReport::Html->new();
 
 # now open an html file that will have a list of links for all the results
 
-open (LIST, ">".$conf->{'outDir'}."batchGOViewList.html")
+my $htmlFile = $conf->{'outDir'}.'batchGOViewList.html';
 
-    || die "Cannot create ".$conf->{'outDir'}."list.html : $!";
+my $listFh = IO::File->new($htmlFile, q{>} )|| die "Cannot make $htmlFile : $!";
 
 # go through each file
 
@@ -182,12 +182,12 @@ foreach my $file (@ARGV){
     my $htmlFile = &GenerateHTMLFile($file, $goView->imageMap, \@pvalues,
 				     scalar($termFinder->genesDatabaseIds), "Terms for $file"); 
 
-    print LIST a({-href=>$htmlFile,
-		  -target=>'result'}, $htmlFile), br;
+    print $listFh a({-href   => $htmlFile,
+		     -target => 'result'}, $htmlFile), br;
 
 }
 
-close LIST;
+$listFh->close;
 
 sub GenerateHTMLFile{
 
@@ -211,33 +211,33 @@ sub GenerateHTMLFile{
 
     my $fullHtmlFile = $conf->{'outDir'}.$htmlFile;
 
-    open (HTML, ">$fullHtmlFile") || die "Cannot create $fullHtmlFile : $!";
+    my $htmlFh = IO::File->new($fullHtmlFile, q{>} )|| die "Cannot make $fullHtmlFile : $!";
 
-    print HTML start_html(-title=>$title);
+    print $htmlFh start_html(-title=>$title);
 
-    print HTML center(h2($title)), hr;
+    print $htmlFh center(h2($title)), hr;
 
-    print HTML $map if defined $map;
+    print $htmlFh $map if defined $map;
 
     my $numRows = $report->print(pvalues      => $pvaluesRef,
 				 aspect       => $conf->{'aspect'},
 				 numGenes     => $numGenes,
 				 totalNum     => $conf->{'totalNumGenes'},
-				 fh           => \*HTML,
+				 fh           => $htmlFh,
 				 pvalueCutOff => $conf->{'pvalueCutOff'},
 				 geneUrl      => $conf->{'geneUrl'},
 				 goidUrl      => $conf->{'goidUrl'});
 
     if ($numRows == 0){
 
-	print HTML h4(font({-color=>'red'}),
-		      center("There were no GO nodes exceeding the p-value cutoff of $conf->{'pvalueCutOff'} for the genes in $file."));
+	print $htmlFh h4(font({-color=>'red'}),
+			 center("There were no GO nodes exceeding the p-value cutoff of $conf->{'pvalueCutOff'} for the genes in $file."));
 
     }
 
-    print HTML end_html;
+    print $htmlFh end_html;
 
-    close HTML;
+    $htmlFh->close;
 
     return ($htmlFile);
 
@@ -249,9 +249,9 @@ sub ReadConfFile{
 
     my %conf;
 
-    open (CONF, $confFile) || die "cannot open $confFile : $!";
+    my $confFh = IO::File->new($confFile, q{<} )|| die "cannot open $confFile : $!";
 
-    while (<CONF>){
+    while (<$confFh>){
 
 	next if /^\#/; # skip comment lines
 
@@ -269,7 +269,7 @@ sub ReadConfFile{
 
     }
 
-    close CONF;
+    $confFh->close;
 
     if (!exists $conf{'annotationFile'} || !defined $conf{'annotationFile'}){
 
@@ -337,26 +337,30 @@ sub GenerateFrameset{
 # start an index file that a user can use to browse the output data,
 # using frames
 
-    open (FRAMES, ">".$conf->{'outDir'}."batchGOView.html") || die "Cannot create $conf->{'outDir'}batchGOView.html : $!";
+    my $framesFile = $conf->{'outDir'}."batchGOView.html";
 
-    print FRAMES frameset({-cols         => "100, *",
-			   -marginheight => '0',
-			   -marginwidth  => '0',
-			   -frameborder  => '1',
-			   -border       => '1'},
+    my $framesFh = IO::File->new($framesFile, q{>} )|| die "Cannot create $framesFile : $!";
+
+    print $framesFh frameset({-cols         => "100, *",
+			      -marginheight => '0',
+			      -marginwidth  => '0',
+			      -frameborder  => '1',
+			      -border       => '1'},
 			  
-			  frame({'-name'       => "list",
-				 -src          => "batchGOViewList.html",
-				 -marginwidth  => 0,
-				 -marginheight => 0,
-				 -border       => 1}),
+			     frame({'-name'       => "list",
+				    -src          => "batchGOViewList.html",
+				    -marginwidth  => 0,
+				    -marginheight => 0,
+				    -border       => 1}),
 		   
-			  frame({'-name'       =>'result',
-				 -marginwidth  => 0,
-				 -marginheight => 0,
-				 -border       => 1}));
+			     frame({'-name'       =>'result',
+				    -marginwidth  => 0,
+				    -marginheight => 0,
+				    -border       => 1}));
 
-    close FRAMES;
+    $framesFh->close;
+
+    return;
 
 }
 

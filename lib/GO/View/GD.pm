@@ -20,11 +20,11 @@ GO::View::GD - a helper class for GO::View to deal with the image
 
 use GO::View::GD;
 
-To instantiate a new InitGD object, you may use  
+To instantiate a new GO::View::GD object, you may use  
 following syntax:
 
-    my $gd = GO::Util::InitGD->new(width=>$imgWidth,
-                                   height=>$imgHeight);               
+    my $gd = GO::View::GD->new(width  => $imgWidth,
+                               height => $imgHeight);               
 
 
 my $im = $gd->im;
@@ -42,7 +42,7 @@ use GD;
 use vars qw ($PACKAGE $VERSION);
 
 $PACKAGE = "GO::View::GD";
-$VERSION = 0.1;
+$VERSION = 0.11;
 
 #######################################################################
 sub new {      ############ constructor ###############################
@@ -59,10 +59,11 @@ sub new {      ############ constructor ###############################
 
 =cut
        
-    my ($self, %args) = @_;
+    my ($class, %args) = @_;
 
-    $self = {};
-    bless $self;
+    my $self = {};
+
+    bless $self, $class;
     
     if (!$args{'width'} || !$args{'height'}) {
 

@@ -122,6 +122,12 @@ a common function or process.
 
     -imageLabel           No          The image label which will appear at
                                       the left bottom corner of the map.
+
+    -maxTopNodeToShow     No          This argument is used to limit the
+                                      amount of the graph that might be
+                                      shown, for the sake of reducing run-
+                                      time.  The default is 6.
+
     ------------------------------------------------------------------------
 
     To display the image on the web:
@@ -162,13 +168,14 @@ use strict;
 use warnings;
 use GD;
 use GraphViz;
+use IO::File;
 
 use GO::View::GD;
 
 use vars qw ($PACKAGE $VERSION);
 
 $PACKAGE = 'GO::View';
-$VERSION = 0.14;
+$VERSION = 0.15;
 
 my $kReplacementText = "<REPLACE_THIS>";
 
@@ -555,6 +562,8 @@ sub _init {
 
     my $count;
 
+    $self->{MAX_TOP_NODE_TO_SHOW} = $args{-maxTopNodeToShow} || 6;
+
     if ($args{-annotationProvider} && $args{-termFinder} && 
 	$args{-aspect}) {
 
@@ -571,15 +580,14 @@ sub _init {
 
 	$count = $self->_initPvaluesGeneNamesDescendantGoids;
 
-    }
-    elsif ($args{-annotationProvider} || $args{-termFinder} || 
-	   $args{-aspect}) {
+    }elsif ($args{-annotationProvider} || $args{-termFinder} || 
+	    $args{-aspect}) {
 
 	die "You have to pass annotation provider and term finder instances and GO aspect ([P|F|C]) to $PACKAGE if you want to display graphic for term finder result.";
 
     }
   
-    # store some more variables
+    # store some more variables    
 
     $self->{IMAGE_LABEL} = $args{-imageLabel};
 
@@ -807,26 +815,26 @@ sub _addChildOfTheNodeToGraph {
 
 	my $childGoid = $childNode->goid;
 
-	if (!$$foundNodeHashRef{$parentGoid}) {
+	if (!$foundNodeHashRef->{$parentGoid}) {
 
 	    $self->_addNode($parentGoid);
 
-	    $$foundNodeHashRef{$parentGoid}++;
+	    $foundNodeHashRef->{$parentGoid}++;
 
 	}
 
-	if (!$$foundNodeHashRef{$childGoid}) {
+	if (!$foundNodeHashRef->{$childGoid}) {
 
 	    $self->_addNode($childGoid);
 
-	    $$foundNodeHashRef{$childGoid}++;
+	    $foundNodeHashRef->{$childGoid}++;
 
 	}
-	if (!$$foundEdgeHashRef{$parentGoid."::".$childGoid}) {
+	if (!$foundEdgeHashRef->{$parentGoid."::".$childGoid}) {
 
 	    $self->_addEdge($parentGoid, $childGoid);
 
-	    $$foundEdgeHashRef{$parentGoid."::".$childGoid}++;
+	    $foundEdgeHashRef->{$parentGoid."::".$childGoid}++;
 
         }
 
@@ -872,49 +880,49 @@ sub _addAncestorPathToGraph {
 
     # go through each path back to the root
 
-    foreach my $ancestorNodeArrayRef (@$ancestorPathArrayRef) {
+    foreach my $ancestorNodeArrayRef (@{$ancestorPathArrayRef}) {
 	
 	# add the child node to the path, so it gets included too
 		
-	push(@$ancestorNodeArrayRef, $childNode);
+	push(@{$ancestorNodeArrayRef}, $childNode);
 
 	# reverse the order, so that we have the child node first, and
 	# the root last
 
-	@$ancestorNodeArrayRef = reverse(@$ancestorNodeArrayRef);
+	@{$ancestorNodeArrayRef} = reverse(@{$ancestorNodeArrayRef});
 
 	# now go through the path
 
-	for (my $i = 0; $i < @$ancestorNodeArrayRef; $i++) {
+	for (my $i = 0; $i < @{$ancestorNodeArrayRef}; $i++) {
 
 	    my ($goid1, $goid2);
 
 	    # get the goid for the current node, and store it's term
 
-	    if (defined $$ancestorNodeArrayRef[$i]) {
+	    if (defined $ancestorNodeArrayRef->[$i]) {
 
-		$goid1 = $$ancestorNodeArrayRef[$i]->goid;
+		$goid1 = $ancestorNodeArrayRef->[$i]->goid;
 
 		$self->{TERM_HASH_REF_FOR_GOID}{$goid1} 
-		        = $$ancestorNodeArrayRef[$i]->term;
+		        = $ancestorNodeArrayRef->[$i]->term;
 
 	    }
 
 	    # get the goid for the next node (the current node's
 	    # parent), and store it's term too
 
-	    if (defined $$ancestorNodeArrayRef[$i+1]) {
+	    if (defined $ancestorNodeArrayRef->[$i+1]) {
 
-		$goid2 = $$ancestorNodeArrayRef[$i+1]->goid;
+		$goid2 = $ancestorNodeArrayRef->[$i+1]->goid;
 
 		$self->{TERM_HASH_REF_FOR_GOID}{$goid2} 
-		        = $$ancestorNodeArrayRef[$i+1]->term;
+		        = $ancestorNodeArrayRef->[$i+1]->term;
 		
 	    }
     
 	    # if the current node isn't already on the graph, add it
 
-	    if ($goid1 && !$$foundNodeHashRef{$goid1}) {
+	    if ($goid1 && !$foundNodeHashRef->{$goid1}) {
 
 		$self->_addNode($goid1,
 				fillcolor => $self->_colorForNode($goid1),
@@ -922,7 +930,7 @@ sub _addAncestorPathToGraph {
 
 		# record that we've seen it
 
-		$$foundNodeHashRef{$goid1}++;
+		$foundNodeHashRef->{$goid1}++;
 
 	    }
 
@@ -930,13 +938,13 @@ sub _addAncestorPathToGraph {
 	    # between the child and parent, let's add that
 
 	    if ($goid1 && $goid2 && 
-		!$$foundEdgeHashRef{$goid2."::".$goid1}) {
+		!$foundEdgeHashRef->{$goid2."::".$goid1}) {
 
 		$self->_addEdge($goid2, $goid1);
 
 		# record that we've added the edge
 
-		$$foundEdgeHashRef{$goid2."::".$goid1}++;
+		$foundEdgeHashRef->{$goid2."::".$goid1}++;
 
 	    }
 
@@ -1032,17 +1040,17 @@ sub _createAndShowImage {
     #
     # http://www.research.att.com/~erg/graphviz/info/lang.html
 
-    if (defined $self->{MAKE_PS} && $self->{MAKE_PS}){
+    if (1){#defined $self->{MAKE_PS} && $self->{MAKE_PS}){
 
 	my $file = $self->{IMAGE_FILE};
 
 	$file =~ s/\.\w+$/\.ps/;
 
-	open (PS, ">$file") || die "Cannot create $file : $!\n";
+	my $fh = IO::File->new($file, q{>} )|| die "Cannot create $file : $!";
 
-	print PS $self->graph->as_ps;
+	print $fh $self->graph->as_ps;
 
-	close PS;
+	$fh->close;
 
     }
 
@@ -1234,21 +1242,21 @@ sub _createAndShowImage {
     my $imageFile = $self->{IMAGE_FILE}; 
     my $imageUrl  = $self->{IMAGE_URL};
 
-    open (OUT, ">".$imageFile) || die "Can't create ".$imageFile.":$!";
+    my $fh = IO::File->new($imageFile, q{>} )|| die "Cannot create $imageFile : $!";
 
-    binmode OUT;
+    binmode $fh;
 
     if ($gd->im->can('png')) {
 
-	print OUT $gd->im->png;
+	print $fh $gd->im->png;
 
     }else {
 
-	print OUT $gd->im->gif;
+	print $fh $gd->im->gif;
 
     }
 
-    close OUT;
+    $fh->close;
 
     if ($self->{CREATE_IMAGE_ONLY}) {
 	
@@ -1905,6 +1913,8 @@ sub _createGraphObject {
 					     style => 'filled' },
 				   edge => { arrowhead => 'none' },
 
+				   overlap => 'false',
+
 				   %args);
 
 }
@@ -2144,7 +2154,7 @@ sub _descendantCount4generation {
     
     my @childNodes = $node->childNodes;
 
-    $$nodeCountHashRef{$generation} += scalar(@childNodes);
+    $nodeCountHashRef->{$generation} += scalar(@childNodes);
 
     foreach my $childNode ($node->childNodes) {
 
@@ -2188,7 +2198,7 @@ sub _setTopGoid {
 
     foreach my $path (@pathsToRoot) {
 
-	my @nodeInPath = reverse(@$path);
+	my @nodeInPath = reverse(@{$path});
 
 	my $generation = 0;
 
@@ -2286,9 +2296,11 @@ sub _initPvaluesGeneNamesDescendantGoids {
     my %loci4goid;
     my %pvalue4goid;
 
-    # don't know what the following variable is really meant to do
+    # $maxTopNodeToShow is used to limit the size of the output graph.
+    # The default value (set during initialization is 6, but can be
+    # modified via a user argument
 
-    my $maxTopNodeToShow = 6;
+    my $maxTopNodeToShow = $self->{MAX_TOP_NODE_TO_SHOW};
 
     my $count = 0;
 
@@ -2336,7 +2348,7 @@ sub _initPvaluesGeneNamesDescendantGoids {
 	
 	    # now go through each goid that the gene was annotated to
 
-	    foreach my $goid (@$goidArrayRef) {
+	    foreach my $goid (@{$goidArrayRef}) {
 
 		# get a GO::Node object for it
 
@@ -2416,9 +2428,9 @@ sub _initVariablesFromConfigFile {
 ##########################################################################
     my ($self, $configFile) = @_;
 
-    open(CONF, "$configFile") || die "Can't open '$configFile' for reading:$!";
+    my $fh = IO::File->new($configFile, q{<}) || die "Can't open '$configFile' for reading : $!";
 
-    while(<CONF>) {
+    while(<$fh>) {
 
 	chomp;
 
@@ -2478,7 +2490,7 @@ sub _initVariablesFromConfigFile {
     
     }
 
-    close(CONF);
+    $fh->close;
 
 }
 
@@ -2628,7 +2640,7 @@ sub _processLabel {
 
     }
 
-    # separate the label into it's constituent words
+    # separate the label into its constituent words
 
     my @words = split(/ /, $label);
 

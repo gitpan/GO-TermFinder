@@ -4,7 +4,7 @@ package GO::Node;
 # Author      : Gavin Sherlock
 # Date Begun  : December 23rd 2002
 
-# $Id: Node.pm,v 1.10 2006/07/28 00:00:23 sherlock Exp $ 
+# $Id: Node.pm,v 1.11 2007/03/18 02:54:46 sherlock Exp $ 
 
 # License information (the MIT license)
 
@@ -42,18 +42,12 @@ The GO::Node package is intended to be used as a container for
 information about a node in one of the three Gene Ontologies.  It
 allows the storage of the goid, and immediate parents and children, as
 well as paths to the top of the ontology.  This package provides
-methods to both store and retrieve that information.  It should be
-borne in mind that this was written with the intention of being used
-to replace lots of code that existed in the
-GO::OntologyProvider::OntologyParser package, and so probably has
-certain inherent biases (the API being designed with certain needs in
-mind).  Any suggestions to make the interface to this class a better
-abstraction are of course welcome...
+methods to both store and retrieve that information.
 
 It should be strongly noted that clients are not expected to create
 individual Node objects themselves, but instead should rely in a Node
-Factory to create nodes and return them.  Such a factory would be the
-GO::OntologyProvider::OntologyParser package.
+Factory to create nodes and return them.  Such a factory would be a
+concrete subclass of the abstract GO::OntologyProvider package.
 
 =head1 TODO
 
@@ -351,7 +345,7 @@ sub pathsToAncestor{
 
 	    # can't be the same if different sizes
 
-	    next INNER if scalar @{$paths[$i]} != scalar @{$paths[$j]};	    
+	    next INNER if scalar @{$paths[$i]} != scalar @{$paths[$j]};
 
 	    # now compare each member of the arrays
 
@@ -381,7 +375,7 @@ sub pathsToAncestor{
 
     return @uniquePaths;
 
-}	    
+}
 
 ##################################################################
 sub ancestors{
@@ -520,7 +514,7 @@ sub isValid{
 
     foreach my $parent ($self->parentNodes){
 
-	$isValid = 0 unless $parent->isAParentOf($self);	
+	$isValid = 0 unless $parent->isAParentOf($self);
 
     }
 

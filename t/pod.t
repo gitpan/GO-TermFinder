@@ -1,7 +1,10 @@
-use Test::More;
+#!/usr/bin/perl
 
 use strict;
 use warnings;
+use diagnostics;
+
+use Test::More;
 
 # This test file will test that all of the pod in any files with a .pm
 # or a .pl extension in the distribution have syntactically correct
@@ -10,7 +13,7 @@ use warnings;
 # if the Test::Pod modules are not installed, then the scripts are
 # skipped.
 
-eval "use Test::Pod 1.00";
+eval {use Test::Pod 1.00};
 
 plan skip_all => "This is not an error, Test::Pod 1.00 is required for testing POD" if $@;
 

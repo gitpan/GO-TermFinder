@@ -5,7 +5,7 @@ package GO::OntologyProvider::OntologyParser;
 # Date Begun : Summer 2001
 # Rewritten  : September 29th 2002
 
-# $Id: OntologyParser.pm,v 1.18 2006/07/28 00:03:27 sherlock Exp $
+# $Id: OntologyParser.pm,v 1.19 2007/03/18 03:11:19 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -145,6 +145,8 @@ use strict;
 use warnings;
 use diagnostics;
 
+use IO::File;
+
 use vars qw (@ISA $PACKAGE $VERSION);
 
 use GO::OntologyProvider;
@@ -154,7 +156,7 @@ use GO::Node;
 
 use Storable qw (nstore);
 
-$VERSION = 0.14;
+$VERSION = 0.15;
 $PACKAGE = "GO::OntologyProvider::OntologyParser";
 
 ##################################################################
@@ -266,11 +268,11 @@ sub __init{
 
     my $self = shift;
 
-    open (ONTOLOGY, $self->__file) || die "$PACKAGE can't open file ". $self->__file ." : $!";
+    my $ontologyFh = IO::File->new($self->__file, q{<} )|| die "$PACKAGE can't open file ". $self->__file ." : $!";
 
     # go through the ontology one line at a time
 
-    while (<ONTOLOGY>){
+    while (<$ontologyFh>){
 
 	chomp;
 	
@@ -280,7 +282,7 @@ sub __init{
 	
     }
 
-    close (ONTOLOGY) || die "Can't close ". $self->__file ." : $!";
+    $ontologyFh->close || die "Can't close ". $self->__file ." : $!";
 
 }
 

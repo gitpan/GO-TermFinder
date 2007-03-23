@@ -4,7 +4,7 @@ package GO::TermFinder;
 # Author      : Gavin Sherlock
 # Date Begun  : December 31st 2002
 
-# $Id: TermFinder.pm,v 1.43 2006/07/28 00:01:36 sherlock Exp $
+# $Id: TermFinder.pm,v 1.44 2007/03/18 03:04:43 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -98,7 +98,7 @@ use vars qw ($PACKAGE $VERSION $WARNINGS);
 use GO::Node;
 use GO::TermFinder::Native;
 
-$VERSION = '0.52';
+$VERSION = '0.60';
 $PACKAGE = 'GO::TermFinder';
 
 $WARNINGS = 1; # toggle this to zero if you don't want warnings
@@ -107,20 +107,21 @@ $WARNINGS = 1; # toggle this to zero if you don't want warnings
 
 my @kRequiredArgs = qw (annotationProvider ontologyProvider aspect);
 
-my $kArgs                    = $PACKAGE.'::__args';
-my $kPopulationNamesHash     = $PACKAGE.'::__populationNamesHash';
-my $kBackgroundDatabaseIds   = $PACKAGE.'::__backgroundDatabaseIds';
-my $kTotalGoNodeCounts       = $PACKAGE.'::__totalGoNodeCounts';
-my $kGoCounts                = $PACKAGE.'::__goCounts';
-my $kGOIDsForDatabaseIds     = $PACKAGE.'::__goidsForDatabaseIds';
-my $kDatabaseIds             = $PACKAGE.'::__databaseIds';
-my $kTotalNumAnnotatedGenes  = $PACKAGE.'::__totalNumAnnotatedGenes';
-my $kCorrectionMethod        = $PACKAGE.'::__correctionMethod';
-my $kShouldCalculateFDR      = $PACKAGE.'::__shouldCalculateFDR';
-my $kPvalues                 = $PACKAGE.'::__pValues';
-my $kDatabaseId2OrigName     = $PACKAGE.'::__databaseId2OrigName';
-my $kDistributions           = $PACKAGE.'::__distributions';
-my $kDiscardedGenes          = $PACKAGE.'::__discardedGenes';
+my $kArgs                     = $PACKAGE.'::__args';
+my $kPopulationNamesHash      = $PACKAGE.'::__populationNamesHash';
+my $kBackgroundDatabaseIds    = $PACKAGE.'::__backgroundDatabaseIds';
+my $kTotalGoNodeCounts        = $PACKAGE.'::__totalGoNodeCounts';
+my $kGoCounts                 = $PACKAGE.'::__goCounts';
+my $kGOIDsForDatabaseIds      = $PACKAGE.'::__goidsForDatabaseIds';
+my $kDatabaseIds              = $PACKAGE.'::__databaseIds';
+my $kTotalNumAnnotatedGenes   = $PACKAGE.'::__totalNumAnnotatedGenes';
+my $kCorrectionMethod         = $PACKAGE.'::__correctionMethod';
+my $kShouldCalculateFDR       = $PACKAGE.'::__shouldCalculateFDR';
+my $kPvalues                  = $PACKAGE.'::__pValues';
+my $kDatabaseId2OrigName      = $PACKAGE.'::__databaseId2OrigName';
+my $kDistributions            = $PACKAGE.'::__distributions';
+my $kDiscardedGenes           = $PACKAGE.'::__discardedGenes';
+my $kDirectAnnotationToAspect = $PACKAGE.'::__directAnnotationToAspect';
 
 # the methods by which the p-value can be corrected
 
@@ -756,11 +757,21 @@ sub __checkAndStoreFindTermsArgs{
 
 	}
 
-	# now see if we have any missing names
+	# Now see if we have any missing names
 
-	# We will print a warning that genes were discarded, but e
-	# also provide an API for them to retrieve the names of genes
-	# that were discarded.
+	# If we have as many missing names as there were genes
+	# provided, then we'll die, as there is nothing that can be
+	# done, as no gene remain for any enrichment calculations
+
+	if (@missingIds == @{$databaseIdsRef}){
+
+	    die "None of the genes provided for analysis are found in the background population.\n";
+
+	}
+
+	# Otherwise, we will print a warning that genes were
+	# discarded, but e also provide an API for them to retrieve
+	# the names of genes that were discarded.
 
 	if (@missingIds){
 
@@ -1210,45 +1221,76 @@ sub __buildHashRefOfAnnotations{
 
     my ($self, $databaseIdsRef) = @_;
 
-    my (%goNodeCounts, $goid);
+    my %goNodeCounts;
+
+    # keep track of how many are annotated to the aspect node
+    # (e.g. such as molecular function).  See comments for
+    # __allGOIDsForDatabaseId for more information
+
+    my $aspectNodeDirectAnnotations = 0;
+
+    my $aspectNodeGoid = ($self->__ontologyProvider->rootNode->childNodes())[0]->goid;
+
+    # If gene has no annotation, annotate it to the top node
+    # (Gene_Ontology), and its immediate child (the aspect itself) and
+    # the 'unannotated' node.
+
+    my @noAnnotationNodes = ($aspectNodeGoid, 
+			     $self->__ontologyProvider->rootNode->goid,
+			     $kUnannotatedNode->goid);
 
     foreach my $databaseId (@{$databaseIdsRef}) {
 
-	# get goids, if the databaseId is not a fake one
+	# get goids count, if the databaseId is not a fake one
 
-	my @goids;
+	my $goidsRef;
 
-	# need the next line separately from the declaration of my
-	# @goids as @goids is not necessarily reset if the regex fails
+	if ($databaseId !~ /^$kFakeIdPrefix/o){
 
-	# don't know if this is a bug or a feature in Perl.... :-)
+	    $goidsRef = $self->__allGOIDsForDatabaseId($databaseId);
 
-	@goids = $self->__allGOIDsForDatabaseId($databaseId) if ($databaseId !~ /^$kFakeIdPrefix/o);
+	}
 
-	if (!@goids) { 
+	if (!defined $goidsRef || !(@{$goidsRef})) { 
 
 	    # If gene has no annotation, annotate it to the top node
 	    # (Gene_Ontology), and its immediate child (the aspect itself)
-	    # and the 'unannotated' node.
+	    # and the 'unannotated' node, which we cached earlier.
 
-	    push (@goids, (($self->__ontologyProvider->rootNode->childNodes())[0]->goid, 
-			   $self->__ontologyProvider->rootNode->goid,
-			   $kUnannotatedNode->goid));
+	    $goidsRef = [@noAnnotationNodes];
 
-	    # now cache the goids	    
+	    # now cache the goids for the unnannotated genes.  The
+	    # ones that were annotated, had their goids cached in the
+	    # __allGOIDsForDatabaseId.  It is an optimization to take
+	    # care of that there, but this here.
 
-	    $self->{$kGOIDsForDatabaseIds}->{$databaseId} = \@goids;
+	    $self->{$kGOIDsForDatabaseIds}->{$databaseId} = $goidsRef;
 	    
 	}
 
 	# increment count for all goids appearing in @goids;
 
-	foreach $goid (@goids) {
+	foreach my $goid (@{$goidsRef}) {
 
 	    $goNodeCounts{$goid}++;
 
 	}
+
+	# keep count of how many are directly annotated to the aspect node
+
+	if (exists ($self->{$kDirectAnnotationToAspect}{$databaseId})){
+
+	    $aspectNodeDirectAnnotations++;
+
+	}
+
     }
+
+    # now we'd like to replace the counts for the aspect annotations,
+    # so that they only refer to the direct annotations, rather than
+    # direct and indirect annotations
+
+    $goNodeCounts{$aspectNodeGoid} = $aspectNodeDirectAnnotations;
 
     return \%goNodeCounts;
 
@@ -1257,20 +1299,34 @@ sub __buildHashRefOfAnnotations{
 ############################################################################
 sub __allGOIDsForDatabaseId{
 ############################################################################
-# This method returns an array of all GOIDs to which a databaseId is
-# annotated, whether explicitly, or implicitly, by virtue of the GO
-# node being an ancestor of an explicitly annotated one.  The returned
-# array contains no duplicates.
-#
+# This method returns a reference to an array of all GOIDs to which a
+# databaseId is annotated, whether explicitly, or implicitly, by
+# virtue of the GO node being an ancestor of an explicitly annotated
+# one.  The returned array contains no duplicates.
+
+# Because the Gene Ontology no longer has the unknown terms, then
+# direct annotation to the aspect node (e.g. molecular function),
+# means what annotation to the unknown terms previously meant.  But,
+# as all nodes are descendents of the aspect node, then enrichment for
+# this node will never happen, unless we only look for enrichment of
+# direct annotations to this node.  Thus, in this method, we also
+# record which databaseIds are directly annotated to the aspect node, which
+# will be used elsewhere.
 
     my ($self, $databaseId) = @_;
     
+    # cache aspect's ID, so we don't have to repeatedly retrieve it
+
+    my $aspectId = ($self->__ontologyProvider->rootNode->childNodes())[0]->goid; # 
+
     # generate list of GOIDs if not cached
     
     if (!exists($self->{$kGOIDsForDatabaseIds}->{$databaseId})) {
 	
-	my %goids; # so we keep the list unique
-	
+	my %goids; # so we keep the list unique	
+
+        # go through the direct annotations
+
 	foreach my $goid (@{$self->__annotationProvider->goIdsByDatabaseId(databaseId => $databaseId,
 									   aspect     => $self->aspect)}){
 
@@ -1284,8 +1340,7 @@ sub __allGOIDsForDatabaseId{
 		    
 		}
 		    
-		# don't record any annotations for this databaseId - 
-		# will mean it just gets Gene_Ontology, its child, and unannotated
+		# don't record annotations to this goid
 
 		next;
 
@@ -1301,6 +1356,14 @@ sub __allGOIDsForDatabaseId{
 
 	    }
 
+	    # record in the self object if it's directly annotated to the aspectId
+
+	    if ($goid eq $aspectId){
+
+		$self->{$kDirectAnnotationToAspect}{$databaseId} = undef;
+
+	    }
+
 	}    
 	
 	# cache the value
@@ -1309,7 +1372,7 @@ sub __allGOIDsForDatabaseId{
 	
     }
     
-    return (@{$self->{$kGOIDsForDatabaseIds}->{$databaseId}});
+    return ($self->{$kGOIDsForDatabaseIds}->{$databaseId});
     
 }
 
@@ -1325,29 +1388,30 @@ sub __calculatePValues{
     my $numDatabaseIds = scalar $self->genesDatabaseIds;
 
     my @pvalueArray;
-    
+
+    # cache so we don't have to repeatedly look it up
+
+    my $rootGoid = $self->__ontologyProvider->rootNode->goid;
+
+    # each node we consider here must have at least one annotation in
+    # our list of provided genes.
+
     foreach my $goid ($self->__allGoIdsForList) {
-	
-	# skip GO nodes with only one gene annotation
 
-	next if ($self->__numAnnotationsToGoId($goid) == 1);
+	# skip the root node, as it has to have a probability of 1,
+	# but don't skip its immediate child though, as we now test
+	# for enriched direct annotations
 
-	# skip the root node, as it has to have a probability of 1
+	next if ($goid eq $rootGoid);
 
-	next if ($goid eq $self->__ontologyProvider->rootNode->goid);
-
-	# skip its immediate child, which corresponds to the aspect of
-	# the ontology, as it also has a probability of 1
-
-	next if ($goid eq ($self->__ontologyProvider->rootNode->childNodes())[0]->goid);	
-
-	# skip any that has only one annotation in the background
-	# distribution, as by definition these cannot be
+	# skip any that has only one (or zero - could happen for the
+	# aspect goid, as we replaced its counts) annotation in the
+	# background distribution, as by definition these cannot be
 	# overrepresented
 
-	next if ($self->__totalNumAnnotationsToGoId($goid) == 1);
+	next if ($self->__numAnnotationsToGoId($goid) <= 1);
 
-	# if we get here, we should calculate the a p-value for this node
+	# if we get here, we should calculate a p-value for this node
 
 	push (@pvalueArray, $self->__processOneGOID($goid, $numDatabaseIds));
 
@@ -1462,47 +1526,20 @@ sub __correctPvalues{
 sub __correctPvaluesBybonferroni{
 #####################################################################
 # This method corrects the p-values using a Bonferroni correction,
-# where the correction factor is the total number of nodes to which
-# the foreground is annotated (i.e. the provided list of genes),
-# except those that are annotated as singletons in the background
-# population, which, a priori, we know cannot be logically
-# over-represented.
+# where the correction factor is the total number of nodes for which
+# we tested whether there was significant enrichment
 
     my $self = shift;
 
-    my $correctionFactor = 0;
-
-    # go through each node annotated by the list of genes
-
-    foreach my $goid ($self->__allGoIdsForList){
-
-	# and increment the correction factor if that node has more
-	# than 1 annotation in the background
-
-	$correctionFactor++ if ($self->__totalNumAnnotationsToGoId($goid) > 1);
-
-    }
-
     # now correct the pvalues with the correction factor
 
-    $self->__adjustPvaluesByCorrectionFactor($correctionFactor);
-
-}
-
-############################################################################
-sub __adjustPvaluesByCorrectionFactor{
-############################################################################
-# This method simply takes a single correction factor, and generates a
-# corrected pvalue from the uncorrected version, by multiplying the
-# two together.
-
-    my ($self, $correctionFactor) = @_;
+    my $correctionFactor = scalar(@{$self->{$kPvalues}});
 
     # the correction factor should never be less than 1
 
     if ($correctionFactor < 1){
 
-	die "The supplied correction factor ($correctionFactor) cannot be less than 1.";
+	die "Internal Error : The correction factor ($correctionFactor) cannot be less than 1.";
 
     }
 
@@ -1967,7 +2004,7 @@ sub __addAnnotationsToPValues{
     my $self = shift;
 
     # to do this, we can take advantage of the fact that all the
-    # databaseIds should have all their databaseIds cached, and we can
+    # nodes should have all their databaseIds cached, and we can
     # retrieve them through the __allGOIDsForDatabaseId() method
 
     # first go through the annotated nodes, and simply hash the goid to the
@@ -1986,8 +2023,8 @@ sub __addAnnotationsToPValues{
     foreach my $databaseId ($self->genesDatabaseIds) {
 
 	# look at all goids for this database id
-	
-	foreach my $goid ($self->__allGOIDsForDatabaseId($databaseId)){
+
+	foreach my $goid (@{$self->__allGOIDsForDatabaseId($databaseId)}){
 	    
 	    next if (! exists $nodeToIndex{$goid}); # this node wasn't a hypothesis
 	    

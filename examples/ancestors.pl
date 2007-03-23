@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Id: ancestors.pl,v 1.4 2003/11/26 18:46:14 sherlock Exp $
+# $Id: ancestors.pl,v 1.6 2007/03/18 05:45:31 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -30,17 +30,20 @@ use strict;
 use diagnostics;
 use warnings;
 
-use GO::OntologyProvider::OntologyParser;
+use GO::OntologyProvider::OboParser;
 
-my ($goid, $ontologyFile) = @ARGV;
+my ($goid, $ontologyFile, $aspect) = @ARGV;
 
-&Usage("You must provide a goid")           if (!$goid);
-&Usage("You must provide an ontology file") if (!$ontologyFile);
-&Usage("Your ontology file does not exist") if (!-e $ontologyFile);
+&Usage("You must provide a goid")                       if (!$goid);
+&Usage("You must provide an obo file")                  if (!$ontologyFile);
+&Usage("Your obo file does not exist")                  if (!-e $ontologyFile);
+&Usage("Your obo file does not have a .obo extension")  if (!-e $ontologyFile);
+&Usage("You must provide an aspect (P|C|F)")            if (!$aspect);
 
-my $ontology = GO::OntologyProvider::OntologyParser->new(ontologyFile => $ontologyFile);
+my $ontology = GO::OntologyProvider::OboParser->new(ontologyFile => $ontologyFile,
+						    aspect       => $aspect);
 
-my $node = $ontology->nodeFromId($goid);
+my $node = $ontology->nodeFromId($goid) || &Usage("No GO term matches your goid : $goid");
 
 my @pathsToRoot = $node->pathsToRoot;
 
@@ -66,7 +69,7 @@ sub Usage{
 
     print "Usage :
 
-ancestors.pl <goid> <ontology_file>\n\n";
+ancestors.pl <goid> <obo_file> <aspect>\n\n";
 
     exit;
 
@@ -80,23 +83,26 @@ ancestors.pl - prints paths from root to a GO node
 
 =head1 SYNOPSIS
 
-ancestors.pl simply takes as input a GOID, and an ontology file, and prints out
-the all the paths from that GO node to the root of the ontology, e.g:
+ancestors.pl simply takes as input a GOID, an obo file, and an
+ontology aspect (P, C or F) and prints out the all the paths from that
+GO node to the root of the ontology, e.g:
 
-    >ancestors.pl GO:0008346 ../t/process.ontology
+    >ancestors.pl GO:0008346 ../t/gene_ontology_edit.obo P
     GO:0003673    Gene_Ontology
         GO:0008150    biological_process
-            GO:0007610    behavior
-                GO:0030537    larval behavior
-                    GO:0008345    larval locomotory behavior
-                        GO:0008346    larval walking behavior
+            GO:0050896    response to stimulus
+                GO:0007610    behavior
+                    GO:0007626    locomotory behavior
+                        GO:0008345    larval locomotory behavior
+                            GO:0008346    larval walking behavior
 
     GO:0003673    Gene_Ontology
         GO:0008150    biological_process
-            GO:0007610    behavior
-                GO:0007626    locomotory behavior
-                    GO:0008345    larval locomotory behavior
-                        GO:0008346    larval walking behavior
+            GO:0050896    response to stimulus
+                GO:0007610    behavior
+                    GO:0030537    larval behavior
+                        GO:0008345    larval locomotory behavior
+                            GO:0008346    larval walking behavior
 
 =head1 AUTHORS
 

@@ -1,3 +1,9 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use diagnostics;
+
 use Test;
 BEGIN { plan tests => 25 };
 
@@ -5,13 +11,9 @@ BEGIN { plan tests => 25 };
 # Author     : Gavin Sherlock
 # Date Begun : March 9th 2002
 
-# $Id: GO-Node.t,v 1.2 2003/11/26 21:51:46 sherlock Exp $
+# $Id: GO-Node.t,v 1.3 2007/03/18 01:37:14 sherlock Exp $
 
 # This file forms a set of tests for the GO::Node class
-
-use strict;
-use warnings;
-use diagnostics;
 
 use GO::Node;
 

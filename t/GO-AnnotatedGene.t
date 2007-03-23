@@ -1,3 +1,9 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use diagnostics;
+
 use Test;
 BEGIN { plan tests => 17 };
 
@@ -5,13 +11,9 @@ BEGIN { plan tests => 17 };
 # Author     : Gavin Sherlock
 # Date Begun : March 9th 2002
 
-# $Id: GO-AnnotatedGene.t,v 1.1 2003/10/16 17:23:35 sherlock Exp $
+# $Id: GO-AnnotatedGene.t,v 1.2 2007/03/18 01:37:14 sherlock Exp $
 
 # This file forms a set of tests for the GO::AnnotatedGene class
-
-use strict;
-use warnings;
-use diagnostics;
 
 use GO::AnnotatedGene;
 

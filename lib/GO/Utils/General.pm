@@ -25,7 +25,7 @@ use Exporter;
 @ISA = ('Exporter');
 @EXPORT_OK = qw (CategorizeGenes);
 
-$VERSION = 0.1;
+$VERSION = 0.11;
 
 my @kRequiredArgs = qw (annotation genes ambiguous unambiguous notFound);
 
@@ -104,3 +104,5 @@ will be populated by this function.
     }
 
 }
+
+1; # keep Perl happy

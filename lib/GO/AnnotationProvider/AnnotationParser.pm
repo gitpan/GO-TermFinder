@@ -5,7 +5,7 @@ package GO::AnnotationProvider::AnnotationParser;
 # Date Begun : Summer 2001
 # Rewritten  : September 25th 2002
 
-# $Id: AnnotationParser.pm,v 1.33 2006/07/28 00:02:14 sherlock Exp $
+# $Id: AnnotationParser.pm,v 1.34 2007/03/18 03:09:05 sherlock Exp $
 
 # Copyright (c) 2003 Gavin Sherlock; Stanford University
 
@@ -160,6 +160,7 @@ use warnings;
 use diagnostics;
 
 use Storable qw (nstore);
+use IO::File;
 
 use vars qw (@ISA $PACKAGE $VERSION);
 
@@ -167,7 +168,7 @@ use GO::AnnotationProvider;
 @ISA = qw (GO::AnnotationProvider);
 
 $PACKAGE = "GO::AnnotationProvider::AnnotationParser";
-$VERSION = "0.12";
+$VERSION = "0.15";
 
 # CLASS Attributes
 #
@@ -301,8 +302,8 @@ Usage:
     
     my $file = $args{'annotationFile'} || $class->_handleMissingArgument(argument => 'annotationFile');
     
-    open (ANNOTATIONS, $file) || die "$PACKAGE cannot open $file : $!";
-    
+    my $annotationsFh = IO::File->new($file, q{<} )|| die "$PACKAGE cannot open $file : $!";
+
     my (@errors, @line);
 
     my ($databaseId, $standardName, $aliases);
@@ -310,7 +311,7 @@ Usage:
 
     my $lineNo = 0;
     
-    while (<ANNOTATIONS>){
+    while (<$annotationsFh>){
 	
 	++$lineNo;
 	
@@ -358,7 +359,7 @@ Usage:
 
     }
     
-    close ANNOTATIONS || die "$PACKAGE cannot close $file : $!";
+    $annotationsFh->close || die "$PACKAGE cannot close $file : $!";
     
     return \@errors;
 
@@ -538,13 +539,13 @@ sub __init{
 
     $self->__setFile($file);
 
-    open (ANNOTATIONS, $file) || die "$PACKAGE cannot open $file : $!";
+    my $annotationsFh = IO::File->new($file, q{<} )|| die "$PACKAGE cannot open $file : $!";
 
     # now read through annotations file
 
     my (@line, $databaseId, $goid, $aspect, $standardName, $aliases);
     
-    while (<ANNOTATIONS>){
+    while (<$annotationsFh>){
 
 	next if /^!/; # skip commented lines
 
@@ -580,7 +581,7 @@ sub __init{
 
     }
 
-    close (ANNOTATIONS) || die "AnnotationParser can't close $file: $!";
+    $annotationsFh->close || die "AnnotationParser can't close $file: $!";
 
     # now count up how many annotated things we have
 
@@ -647,7 +648,28 @@ sub __mapNamesToDatabaseId{
 
     my ($self, $databaseId, $standardName, $aliases) = @_;
 
-    return if (exists $self->{$kIdToStandardName}{$databaseId}); # we've already seen this databaseId
+    if (exists $self->{$kIdToStandardName}{$databaseId}){ # we've already seen this databaseId
+
+	if ($self->{$kIdToStandardName}{$databaseId} ne $standardName){
+
+	    # there is a problem in the file - there should only be
+	    # one standard name for a given database id, so we'll die
+	    # here
+
+	    die "databaseId $databaseId maps to more than one standard name : $self->{$kIdToStandardName}{$databaseId} ; $standardName\n";
+
+	}else{
+
+	    # we can simply return, as we've already processed
+	    # information for this databaseId
+
+	    return;
+
+	}
+
+    }
+
+    # we haven't see this databaseId before, so process the data
 
     my @aliases = split(/\|/, $aliases);
 
@@ -1018,7 +1040,7 @@ Usage:
 
     }else{ # we don't recognize it
 	
-	return undef; # note return here
+	return ; # note return here
 
     }
 
@@ -1825,8 +1847,13 @@ Usage:
 CVS info is listed here:
 
  # $Author: sherlock $
- # $Date: 2006/07/28 00:02:14 $
+ # $Date: 2007/03/18 03:09:05 $
  # $Log: AnnotationParser.pm,v $
+ # Revision 1.34  2007/03/18 03:09:05  sherlock
+ # couple of PerlCritic suggested improvements, and an extra check to
+ # make sure that the cardinality between standard names and database ids
+ # is 1:1
+ #
  # Revision 1.33  2006/07/28 00:02:14  sherlock
  # fixed a couple of typos
  #

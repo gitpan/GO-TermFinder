@@ -1,19 +1,21 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use diagnostics;
+
 use Test::More;
 use File::Find;
 
 # This test file will test that all of perl files in the distribution
 # compile and have use strict in them
 
-use strict;
-use warnings;
-use diagnostics;
-
 $|=1;
 
 # if the Test::Strict modules are not installed, then the tests are
 # skipped.
 
-eval "use Test::Strict";
+eval { use Test::Strict };
 
 plan skip_all => "This is not an error, Test::Strict 1.00 is required
 for testing that perl files compile and use strict" if $@;
@@ -47,5 +49,7 @@ sub wanted {
 	$filesToTest{$File::Find::name} = undef;
 
     }
+
+    return;
 
 }

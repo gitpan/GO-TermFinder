@@ -42,7 +42,7 @@ name, or GOID should be put.
                                  fh       => \*HTML,
                                  cutoff   => 0.01,
                                  geneUrl  => 'http://db.yeastgenome.org/cgi-bin/SGD/locus.pl?locus=<REPLACE_THIS>',
-                                 goidUrl  => 'http://godatabase.org/cgi-bin/go.cgi?query=<REPLACE_THIS>');
+                                 goidUrl  => 'http://amigo.geneontology.org/cgi-bin/amigo/go.cgi?view=details&search_constraint=terms&depth=0&query=<REPLACE_THIS>');
 
     print HTML "</body></html>";
 
@@ -56,7 +56,7 @@ use diagnostics;
 
 use vars qw ($VERSION);
 
-$VERSION = 0.11;
+$VERSION = 0.12;
 
 use CGI qw/:all :html3/;
 
@@ -111,7 +111,7 @@ Usage:
 				 fh           => \*HTML,
 				 pvalueCutOff => 0.01,
 				 geneUrl      => 'http://db.yeastgenome.org/cgi-bin/SGD/locus.pl?locus=<REPLACE_THIS>',
-				 goidUrl      => 'http://godatabase.org/cgi-bin/go.cgi?query=<REPLACE_THIS>');
+				 goidUrl      => 'http://amigo.geneontology.org/cgi-bin/amigo/go.cgi?view=details&search_constraint=terms&depth=0&query=<REPLACE_THIS>');
 
 Required arguments:
 
@@ -344,20 +344,18 @@ sub _printTable{
     $aspect =~ s/^P/Process/i;
     $aspect =~ s/^C/Component/i;
 
-    my $oldFh = select($fh);
-
-    print a({-name=>'table'});
-    print center(h3("Result Table")), p;
+    print $fh a({-name=>'table'});
+    print $fh center(h3("Result Table")), p;
     
-    print table({-align       => 'center',
-		 -border      => 1,
-		 -cellpadding => 2,
-		 -width       => 400},
-		Tr(td({-bgcolor => '#FFCC99',
-		       -align   => 'center',
-		       -width   => '100%',
-		       -nowrap  => undef},
-		      b("Terms from the $aspect Ontology with p-value as good or better than $cutoff"))));
+    print $fh table({-align       => 'center',
+		     -border      => 1,
+		     -cellpadding => 2,
+		     -width       => 400},
+		    Tr(td({-bgcolor => '#FFCC99',
+			   -align   => 'center',
+			   -width   => '100%',
+			   -nowrap  => undef},
+			  b("Terms from the $aspect Ontology with p-value as good or better than $cutoff"))));
 
     my $headings = th({-align => 'center'}, "Gene Ontology term").
 		   th({-align => 'center'}, "Cluster frequency").
@@ -373,13 +371,11 @@ sub _printTable{
 
     $headings .= th({-align => 'center'}, "Genes annotated to the term");
 
-    print table({-align  => 'center',
-		 -border => 2},
-		Tr({-bgcolor  => '#CCCCFF'},
-		   $headings).
-		$rows), p;
-
-    select($oldFh);
+    print $fh table({-align  => 'center',
+		     -border => 2},
+		    Tr({-bgcolor  => '#CCCCFF'},
+		       $headings).
+		    $rows), p;
 
 }
     

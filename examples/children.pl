@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Id: children.pl,v 1.4 2003/11/26 18:46:47 sherlock Exp $
+# $Id: children.pl,v 1.8 2007/03/18 05:47:33 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -30,17 +30,20 @@ use strict;
 use diagnostics;
 use warnings;
 
-use GO::OntologyProvider::OntologyParser;
+use GO::OntologyProvider::OboParser;
 
-my ($goid, $ontologyFile) = @ARGV;
+my ($goid, $ontologyFile, $aspect) = @ARGV;
 
-&Usage("You must provide a goid")           if (!$goid);
-&Usage("You must provide an ontology file") if (!$ontologyFile);
-&Usage("Your ontology file does not exist") if (!-e $ontologyFile);
+&Usage("You must provide a goid")                       if (!$goid);
+&Usage("You must provide an obo file")                  if (!$ontologyFile);
+&Usage("Your ontology file does not exist")             if (!-e $ontologyFile);
+&Usage("Your obo file does not have a .obo extension")  if (!-e $ontologyFile);
+&Usage("You must provide an aspect (P|C|F)")            if (!$aspect);
 
-my $ontology = GO::OntologyProvider::OntologyParser->new(ontologyFile => $ontologyFile);
+my $ontology = GO::OntologyProvider::OboParser->new(ontologyFile => $ontologyFile,
+						    aspect       => $aspect);
 
-my $node = $ontology->nodeFromId($goid);
+my $node = $ontology->nodeFromId($goid) || &Usage("No GO term matches your goid : $goid");
 
 my @children = $node->childNodes;
 
@@ -86,20 +89,26 @@ children.pl - prints children of a supplied GO node
 
 =head1 SYNOPSIS
 
-children.pl simply takes as input a GOID, and an ontology file, and prints out
-the children of that GO node, e.g.:
+children.pl simply takes as input a GOID, and an obo file, and an
+ontology aspect (P, C or F) and prints out the children of that GO
+node, e.g.:
 
-    >children.pl GO:0008150 process.ontology
+    >children.pl GO:0008150 ../t/gene_ontology_edit.obo P
 
     Children of GO:0008150 (biological_process) : 
 
-    GO:0000004    biological_process unknown
+    GO:0000003    reproduction
+    GO:0007582    physiological process
+    GO:0021700    developmental maturation
+    GO:0050789    regulation of biological process
     GO:0016032    viral life cycle
-    GO:0007582    physiological processes
+    GO:0043473    pigmentation
     GO:0007275    development
+    GO:0050896    response to stimulus
     GO:0009987    cellular process
-    GO:0008371    obsolete
-    GO:0007610    behavior
+    GO:0040007    growth
+    GO:0051704    interaction between organisms
+
 
 =head1 AUTHORS
 

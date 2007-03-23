@@ -94,7 +94,8 @@ Usage:
 				       numGenes => scalar(@genes),
 				       totalNum => $totalNum,
 				       cutoff   => 0.01,
-				       fh       => \*OUT);
+				       fh       => \*OUT,
+                                       table    => 0 );
 
 Required arguments:
 
@@ -114,6 +115,8 @@ fh       : A reference to a file handle to which the table should be
 
 cutoff   : The p-value cutoff, above which p-values and associated
            information will not be printed.  Default is no cutoff.
+
+table    : 0 for standard output, 1 for tab delimited table.  Default is 0
 
 =cut
 
@@ -144,6 +147,7 @@ cutoff   : The p-value cutoff, above which p-values and associated
     my $totalNum = $args{'totalNum'};
     my $fh       = $args{'fh'}     || \*STDOUT;
     my $cutoff   = $args{'cutoff'} || 1;
+    my $table    = $args{'table'}  || 0;
 
     my $rows;
     my $numRows = 0;
@@ -151,6 +155,14 @@ cutoff   : The p-value cutoff, above which p-values and associated
     my $hasFdr = 0;
 
     my $hypothesis = 1;
+
+    my @header = ("GOID", "TERM", "CORRECTED_PVALUE",
+		  "UNCORRECTED_PVALUE", "NUM_LIST_ANNOTATIONS",
+		  "LIST_SIZE", "TOTAL_NUM_ANNOTATIONS",
+		  "POPULATION_SIZE", "FDR_RATE",
+		  "EXPECTED_FALSE_POSITIVES", "ANNOTATED_GENES");
+
+    print $fh join("\t", @header), "\n" if ($table);
 
     foreach my $pvalue (@{$pvalues}){
 
@@ -179,18 +191,31 @@ cutoff   : The p-value cutoff, above which p-values and associated
 
 	    $value = "<".$value;
 
-	}	
+	}
+	
+	if (!$table){
 
-	print $fh "-- $hypothesis of ", scalar @{$pvalues}, " --\n",
-	    
-	"GOID\t", $pvalue->{NODE}->goid, "\n",
-	
-	"TERM\t", $pvalue->{NODE}->term, "\n",
-	
-	"CORRECTED P-VALUE\t", $pvalue->{CORRECTED_PVALUE}, "\n",
-	
-	"UNCORRECTED P-VALUE\t", $pvalue->{PVALUE}, "\n";
+	    print $fh 
 
+		"-- $hypothesis of ", scalar @{$pvalues}, " --\n",
+		"GOID\t", $pvalue->{NODE}->goid, "\n",
+		"TERM\t", $pvalue->{NODE}->term, "\n",
+		"CORRECTED P-VALUE\t", $pvalue->{CORRECTED_PVALUE}, "\n",
+		"UNCORRECTED P-VALUE\t", $pvalue->{PVALUE}, "\n";
+
+	}else{
+
+	    print $fh join("\t", ($pvalue->{NODE}->goid, 
+				  $pvalue->{NODE}->term,
+				  $pvalue->{CORRECTED_PVALUE},
+				  $pvalue->{PVALUE},
+				  $pvalue->{NUM_ANNOTATIONS},
+				  $numGenes,
+				  $pvalue->{TOTAL_NUM_ANNOTATIONS},
+				  $totalNum)), "\t";
+
+	}
+	
 	# deal with FDR
 
 	my ($fdr, $falsePositives);
@@ -201,21 +226,38 @@ cutoff   : The p-value cutoff, above which p-values and associated
 
 	    $falsePositives = sprintf ("%.2f", $pvalue->{EXPECTED_FALSE_POSITIVES});
 
-	    print $fh "FDR_RATE\t", $fdr, "\n",
+	    if(!$table){
 
-	    "EXPECTED_FALSE_POSITIVES\t", $falsePositives, "\n";
+		print $fh 
+
+		    "FDR_RATE\t", $fdr, "\n",
+		    "EXPECTED_FALSE_POSITIVES\t", $falsePositives, "\n";
+
+	    }else{
+
+	      print $fh $fdr, "\t", $falsePositives, "\t";
+
+	    }
+
+	}else{
+
+	    print $fh "\t\t" if ($table); # Gotta fill in the blanks
 
 	}
-	
-	print $fh "NUM_ANNOTATIONS\t", $pvalue->{NUM_ANNOTATIONS},
 
-	" of $numGenes in the list, vs ", 
+	if (!$table){
+	
+	    print $fh "NUM_ANNOTATIONS\t"; 
+	    print $fh $pvalue->{NUM_ANNOTATIONS};
+	    print $fh " of $numGenes in the list, vs ";
+	    print $fh $pvalue->{TOTAL_NUM_ANNOTATIONS};
+	    print $fh " of $totalNum in the genome\n";
+	    print $fh "The genes annotated to this node are:\n";;
 
-	$pvalue->{TOTAL_NUM_ANNOTATIONS}, " of $totalNum in the genome\n",
-	
-	"The genes annotated to this node are:\n",
-	
-	join(", ", values(%{$pvalue->{ANNOTATED_GENES}})), "\n\n";
+	}
+
+	print $fh join(", ", values(%{$pvalue->{ANNOTATED_GENES}})), "\n";
+	print $fh "\n" if (!$table);
 	
 	$hypothesis++;
 	

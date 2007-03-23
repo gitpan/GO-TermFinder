@@ -1,10 +1,10 @@
 #!/usr/bin/perl
 
-# $Id: termFinderClient.pl,v 1.6 2004/05/06 01:36:49 sherlock Exp $
+# $Id: termFinderClient.pl,v 1.9 2007/03/18 05:46:39 sherlock Exp $
 
 # License information (the MIT license)
 
-# Copyright (c) 2003 Gavin Sherlock; Stanford University
+# Copyright (c) 2003-2007 Gavin Sherlock; Stanford University
 
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation files
@@ -32,13 +32,13 @@ use diagnostics;
 
 use GO::TermFinder;
 use GO::AnnotationProvider::AnnotationParser;
-use GO::OntologyProvider::OntologyParser;
+use GO::OntologyProvider::OboParser;
 
 use GO::TermFinderReport::Text;
 
 use GO::Utils::File qw (GenesFromFile);
 
-print "Enter the fully qualified name of your ontology file:\n";
+print "Enter the fully qualified name of your obo file:\n";
 
 chomp(my $ontologyFile = <STDIN>);
 
@@ -60,14 +60,15 @@ chomp(my $totalNum = <STDIN>);
 
 print "Finding terms...\n";
 
-my $ontology   = GO::OntologyProvider::OntologyParser->new(ontologyFile=>$ontologyFile);
+my $ontology   = GO::OntologyProvider::OboParser->new(ontologyFile => $ontologyFile,
+						      aspect       => $aspect);
 
 my $annotation = GO::AnnotationProvider::AnnotationParser->new(annotationFile=>$annotationFile);
 
-my $termFinder = GO::TermFinder->new(annotationProvider=> $annotation,
-				     ontologyProvider  => $ontology,
-				     totalNumGenes     => $totalNum,
-				     aspect            => $aspect);
+my $termFinder = GO::TermFinder->new(annotationProvider => $annotation,
+				     ontologyProvider   => $ontology,
+				     totalNumGenes      => $totalNum,
+				     aspect             => $aspect);
 
 my @genes = GenesFromFile($genesFile);
 
@@ -112,223 +113,324 @@ MUP1 and MET6, which formed the so called methionine cluster from
 Spellman et al, 1998:
 
     > termFinderClient.pl
-    Enter the fully qualified name of your ontology file:
-    process.ontology
-    What is the aspect of this ontology (F, P, or C)?
+    Enter the fully qualified name of your obo file:
+    ../t/gene_ontology_edit.obo
+    What is the aspect of this ontology you want to use (F, P, or C)?
     P
     Enter the fully qualified name of your associations file:
-    gene_association.sgd
+    ../t/gene_association.sgd
     Enter a the fully qualified name of your file with a list of genes for which to find term:
     genes.txt
     How many genes (roughly) exist within the organism?
     7300
     Finding terms...
-    -- 1 of 30 --
+    -- 1 of 37 --
     GOID    GO:0006790
     TERM    sulfur metabolism
-    CORRECTED P-VALUE       3.16574033239377e-23
-    UNCORRECTED P-VALUE     4.72498557073697e-25
-    NUM_ANNOTATIONS 13 of 19 in the list, vs 51 of 7300 in the genome
+    CORRECTED P-VALUE       1.47659150177758e-22
+    UNCORRECTED P-VALUE     3.99078784264211e-24
+    FDR_RATE        0.00%
+    EXPECTED_FALSE_POSITIVES        0.00
+    NUM_ANNOTATIONS 13 of 19 in the list, vs 59 of 7300 in the genome
     The genes annotated to this node are:
-    STR3, MHT1, MET17, MET6, ECM17, MET1, MET2, MET3, MET16, MET28, MET11, MET14, MET10
+    MET14, MET3, STR3, ECM17, MET28, MHT1, MET6, MET10, MET1, MET11, MET2, MET16, MET17
     
-    -- 2 of 30 --
+    -- 2 of 37 --
     GOID    GO:0000096
     TERM    sulfur amino acid metabolism
-    CORRECTED P-VALUE       2.20564875638675e-21
-    UNCORRECTED P-VALUE     3.29201306923395e-23
-    NUM_ANNOTATIONS 11 of 19 in the list, vs 29 of 7300 in the genome
+    CORRECTED P-VALUE       4.5287552955708e-21
+    UNCORRECTED P-VALUE     1.22398791772184e-22
+    FDR_RATE        0.00%
+    EXPECTED_FALSE_POSITIVES        0.00
+    NUM_ANNOTATIONS 11 of 19 in the list, vs 32 of 7300 in the genome
     The genes annotated to this node are:
-    STR3, MHT1, MET17, MET6, MET1, MET2, MET3, MET16, MET28, MET11, MET14
+    MET14, MET3, STR3, MET28, MHT1, MET6, MET1, MET11, MET2, MET16, MET17
     
-    -- 3 of 30 --
+    -- 3 of 37 --
     GOID    GO:0006555
     TERM    methionine metabolism
-    CORRECTED P-VALUE       6.3525062302867e-18
-    UNCORRECTED P-VALUE     9.48135258251747e-20
-    NUM_ANNOTATIONS 9 of 19 in the list, vs 20 of 7300 in the genome
+    CORRECTED P-VALUE       1.70050438966192e-17
+    UNCORRECTED P-VALUE     4.59595780989708e-19
+    FDR_RATE        0.00%
+    EXPECTED_FALSE_POSITIVES        0.00
+    NUM_ANNOTATIONS 9 of 19 in the list, vs 23 of 7300 in the genome
     The genes annotated to this node are:
-    STR3, MET17, MET6, MET1, MET2, MET3, MET16, MET11, MET14
+    MET14, MET1, MET11, MET3, STR3, MET2, MET16, MET17, MET6
     
-    -- 4 of 30 --
+    -- 4 of 37 --
     GOID    GO:0006520
     TERM    amino acid metabolism
-    CORRECTED P-VALUE       8.86722504694052e-16
-    UNCORRECTED P-VALUE     1.3234664249165e-17
-    NUM_ANNOTATIONS 13 of 19 in the list, vs 175 of 7300 in the genome
+    CORRECTED P-VALUE       9.54842088570323e-16
+    UNCORRECTED P-VALUE     2.58065429343331e-17
+    FDR_RATE        0.00%
+    EXPECTED_FALSE_POSITIVES        0.00
+    NUM_ANNOTATIONS 13 of 19 in the list, vs 184 of 7300 in the genome
     The genes annotated to this node are:
-    STR3, MHT1, MET17, MET6, ECM17, MET1, MET2, MET3, MET16, MET28, MET11, MET14, YIL074C
+    MET14, MET3, STR3, ECM17, MET28, MHT1, MET6, MET1, MET11, MET2, MET16, YIL074C, MET17
     
-    -- 5 of 30 --
-    GOID    GO:0006519
-    TERM    amino acid and derivative metabolism
-    CORRECTED P-VALUE       2.14382262130395e-15
-    UNCORRECTED P-VALUE     3.19973525567754e-17
-    NUM_ANNOTATIONS 13 of 19 in the list, vs 187 of 7300 in the genome
-    The genes annotated to this node are:
-    STR3, MHT1, MET17, MET6, ECM17, MET1, MET2, MET3, MET16, MET28, MET11, MET14, YIL074C
-    
-    -- 6 of 30 --
-    GOID    GO:0009308
-    TERM    amine metabolism
-    CORRECTED P-VALUE       4.57805242229355e-15
-    UNCORRECTED P-VALUE     6.8329140631247e-17
-    NUM_ANNOTATIONS 13 of 19 in the list, vs 198 of 7300 in the genome
-    The genes annotated to this node are:
-    STR3, MHT1, MET17, MET6, ECM17, MET1, MET2, MET3, MET16, MET28, MET11, MET14, YIL074C
-    
-    -- 7 of 30 --
-    GOID    GO:0009066
-    TERM    aspartate family amino acid metabolism
-    CORRECTED P-VALUE       1.64111443018549e-14
-    UNCORRECTED P-VALUE     2.44942452266491e-16
-    NUM_ANNOTATIONS 9 of 19 in the list, vs 42 of 7300 in the genome
-    The genes annotated to this node are:
-    STR3, MET17, MET6, MET1, MET2, MET3, MET16, MET11, MET14
-    
-    -- 8 of 30 --
-    GOID    GO:0006082
-    TERM    organic acid metabolism
-    CORRECTED P-VALUE       1.4994989396095e-13
-    UNCORRECTED P-VALUE     2.23805811882014e-15
-    NUM_ANNOTATIONS 13 of 19 in the list, vs 258 of 7300 in the genome
-    The genes annotated to this node are:
-    STR3, MHT1, MET17, MET6, ECM17, MET1, MET2, MET3, MET16, MET28, MET11, MET14, YIL074C
-    
-    -- 9 of 30 --
-    GOID    GO:0019752
-    TERM    carboxylic acid metabolism
-    CORRECTED P-VALUE       1.4994989396095e-13
-    UNCORRECTED P-VALUE     2.23805811882014e-15
-    NUM_ANNOTATIONS 13 of 19 in the list, vs 258 of 7300 in the genome
-    The genes annotated to this node are:
-    STR3, MHT1, MET17, MET6, ECM17, MET1, MET2, MET3, MET16, MET28, MET11, MET14, YIL074C
-    
-    -- 10 of 30 --
-    GOID    GO:0000103
-    TERM    sulfate assimilation
-    CORRECTED P-VALUE       2.41921570979174e-13
-    UNCORRECTED P-VALUE     3.61076971610707e-15
-    NUM_ANNOTATIONS 6 of 19 in the list, vs 8 of 7300 in the genome
-    The genes annotated to this node are:
-    MET14, ECM17, MET1, MET3, MET16, MET10
-    
-    -- 11 of 30 --
-    GOID    GO:0006791
-    TERM    sulfur utilization
-    CORRECTED P-VALUE       2.41921570979174e-13
-    UNCORRECTED P-VALUE     3.61076971610707e-15
-    NUM_ANNOTATIONS 6 of 19 in the list, vs 8 of 7300 in the genome
-    The genes annotated to this node are:
-    MET14, ECM17, MET1, MET3, MET16, MET10
-    
-    -- 12 of 30 --
+    -- 5 of 37 --
     GOID    GO:0000097
     TERM    sulfur amino acid biosynthesis
-    CORRECTED P-VALUE       7.24655785462269e-13
-    UNCORRECTED P-VALUE     1.08157579919742e-14
-    NUM_ANNOTATIONS 6 of 19 in the list, vs 9 of 7300 in the genome
+    CORRECTED P-VALUE       1.01918487720888e-15
+    UNCORRECTED P-VALUE     2.75455372218618e-17
+    FDR_RATE        0.00%
+    EXPECTED_FALSE_POSITIVES        0.00
+    NUM_ANNOTATIONS 7 of 19 in the list, vs 10 of 7300 in the genome
     The genes annotated to this node are:
-    STR3, MET17, MET6, MET2, MET28, MET11
+    MET1, MET11, STR3, MET2, MET28, MET17, MET6
     
-    -- 13 of 30 --
+    -- 6 of 37 --
+    GOID    GO:0006519
+    TERM    amino acid and derivative metabolism
+    CORRECTED P-VALUE       2.70276218187099e-15
+    UNCORRECTED P-VALUE     7.30476265370537e-17
+    FDR_RATE        0.00%
+    EXPECTED_FALSE_POSITIVES        0.00
+    NUM_ANNOTATIONS 13 of 19 in the list, vs 199 of 7300 in the genome
+    The genes annotated to this node are:
+    MET14, MET3, STR3, ECM17, MET28, MHT1, MET6, MET1, MET11, MET2, MET16, YIL074C, MET17
+    
+    -- 7 of 37 --
+    GOID    GO:0009308
+    TERM    amine metabolism
+    CORRECTED P-VALUE       1.14774161056767e-14
+    UNCORRECTED P-VALUE     3.10200435288561e-16
+    FDR_RATE        0.00%
+    EXPECTED_FALSE_POSITIVES        0.00
+    NUM_ANNOTATIONS 13 of 19 in the list, vs 222 of 7300 in the genome
+    The genes annotated to this node are:
+    MET14, MET3, STR3, ECM17, MET28, MHT1, MET6, MET1, MET11, MET2, MET16, YIL074C, MET17
+    
+    -- 8 of 37 --
+    GOID    GO:0009066
+    TERM    aspartate family amino acid metabolism
+    CORRECTED P-VALUE       1.79446311877879e-14
+    UNCORRECTED P-VALUE     4.84990032102375e-16
+    FDR_RATE        0.00%
+    EXPECTED_FALSE_POSITIVES        0.00
+    NUM_ANNOTATIONS 9 of 19 in the list, vs 45 of 7300 in the genome
+    The genes annotated to this node are:
+    MET14, MET1, MET11, MET3, STR3, MET2, MET16, MET17, MET6
+    
+    -- 9 of 37 --
+    GOID    GO:0006807
+    TERM    nitrogen compound metabolism
+    CORRECTED P-VALUE       3.77265283361447e-14
+    UNCORRECTED P-VALUE     1.01963590097688e-15
+    FDR_RATE        0.00%
+    EXPECTED_FALSE_POSITIVES        0.00
+    NUM_ANNOTATIONS 13 of 19 in the list, vs 243 of 7300 in the genome
+    The genes annotated to this node are:
+    MET14, MET3, STR3, ECM17, MET28, MHT1, MET6, MET1, MET11, MET2, MET16, YIL074C, MET17
+    
+    -- 10 of 37 --
+    GOID    GO:0044272
+    TERM    sulfur compound biosynthesis
+    CORRECTED P-VALUE       2.67188341651488e-13
+    UNCORRECTED P-VALUE     7.2213065311213e-15
+    FDR_RATE        0.00%
+    EXPECTED_FALSE_POSITIVES        0.00
+    NUM_ANNOTATIONS 7 of 19 in the list, vs 18 of 7300 in the genome
+    The genes annotated to this node are:
+    MET1, MET11, STR3, MET2, MET28, MET17, MET6
+    
+    -- 11 of 37 --
+    GOID    GO:0006082
+    TERM    organic acid metabolism
+    CORRECTED P-VALUE       7.06399274294626e-13
+    UNCORRECTED P-VALUE     1.90918722782331e-14
+    FDR_RATE        0.00%
+    EXPECTED_FALSE_POSITIVES        0.00
+    NUM_ANNOTATIONS 13 of 19 in the list, vs 304 of 7300 in the genome
+    The genes annotated to this node are:
+    MET14, MET3, STR3, ECM17, MET28, MHT1, MET6, MET1, MET11, MET2, MET16, YIL074C, MET17
+    
+    -- 12 of 37 --
+    GOID    GO:0019752
+    TERM    carboxylic acid metabolism
+    CORRECTED P-VALUE       7.06399274294626e-13
+    UNCORRECTED P-VALUE     1.90918722782331e-14
+    FDR_RATE        0.00%
+    EXPECTED_FALSE_POSITIVES        0.00
+    NUM_ANNOTATIONS 13 of 19 in the list, vs 304 of 7300 in the genome
+    The genes annotated to this node are:
+    MET14, MET3, STR3, ECM17, MET28, MHT1, MET6, MET1, MET11, MET2, MET16, YIL074C, MET17
+    
+    -- 13 of 37 --
+    GOID    GO:0000103
+    TERM    sulfate assimilation
+    CORRECTED P-VALUE       9.98928836937253e-13
+    UNCORRECTED P-VALUE     2.69980766739798e-14
+    FDR_RATE        0.00%
+    EXPECTED_FALSE_POSITIVES        0.00
+    NUM_ANNOTATIONS 6 of 19 in the list, vs 10 of 7300 in the genome
+    The genes annotated to this node are:
+    MET10, MET14, MET1, MET3, ECM17, MET16
+    
+    -- 14 of 37 --
+    GOID    GO:0006791
+    TERM    sulfur utilization
+    CORRECTED P-VALUE       9.98928836937253e-13
+    UNCORRECTED P-VALUE     2.69980766739798e-14
+    FDR_RATE        0.00%
+    EXPECTED_FALSE_POSITIVES        0.00
+    NUM_ANNOTATIONS 6 of 19 in the list, vs 10 of 7300 in the genome
+    The genes annotated to this node are:
+    MET10, MET14, MET1, MET3, ECM17, MET16
+    
+    -- 15 of 37 --
     GOID    GO:0008652
     TERM    amino acid biosynthesis
-    CORRECTED P-VALUE       4.9099398159285e-09
-    UNCORRECTED P-VALUE     7.32826838198284e-11
-    NUM_ANNOTATIONS 8 of 19 in the list, vs 102 of 7300 in the genome
+    CORRECTED P-VALUE       4.728301511661e-11
+    UNCORRECTED P-VALUE     1.27791932747595e-12
+    FDR_RATE        0.00%
+    EXPECTED_FALSE_POSITIVES        0.00
+    NUM_ANNOTATIONS 9 of 19 in the list, vs 103 of 7300 in the genome
     The genes annotated to this node are:
-    STR3, MET17, MET6, ECM17, MET2, MET28, MET11, YIL074C
+    MET1, MET11, STR3, MET2, ECM17, YIL074C, MET28, MET17, MET6
     
-    -- 14 of 30 --
+    -- 16 of 37 --
     GOID    GO:0009309
     TERM    amine biosynthesis
-    CORRECTED P-VALUE       8.42568196571993e-09
-    UNCORRECTED P-VALUE     1.25756447249551e-10
-    NUM_ANNOTATIONS 8 of 19 in the list, vs 109 of 7300 in the genome
+    CORRECTED P-VALUE       9.42530020402032e-11
+    UNCORRECTED P-VALUE     2.54737843351901e-12
+    FDR_RATE        0.00%
+    EXPECTED_FALSE_POSITIVES        0.00
+    NUM_ANNOTATIONS 9 of 19 in the list, vs 111 of 7300 in the genome
     The genes annotated to this node are:
-    STR3, MET17, MET6, ECM17, MET2, MET28, MET11, YIL074C
+    MET1, MET11, STR3, MET2, ECM17, YIL074C, MET28, MET17, MET6
     
-    -- 15 of 30 --
-    GOID    GO:0000101
-    TERM    sulfur amino acid transport
-    CORRECTED P-VALUE       9.98458841804645e-06
-    UNCORRECTED P-VALUE     1.49023707732037e-07
-    NUM_ANNOTATIONS 3 of 19 in the list, vs 5 of 7300 in the genome
+    -- 17 of 37 --
+    GOID    GO:0044271
+    TERM    nitrogen compound biosynthesis
+    CORRECTED P-VALUE       9.42530020402032e-11
+    UNCORRECTED P-VALUE     2.54737843351901e-12
+    FDR_RATE        0.00%
+    EXPECTED_FALSE_POSITIVES        0.00
+    NUM_ANNOTATIONS 9 of 19 in the list, vs 111 of 7300 in the genome
     The genes annotated to this node are:
-    MMP1, MUP1, SAM3
+    MET1, MET11, STR3, MET2, ECM17, YIL074C, MET28, MET17, MET6
     
-    -- 16 of 30 --
+    -- 18 of 37 --
     GOID    GO:0009086
     TERM    methionine biosynthesis
-    CORRECTED P-VALUE       9.98458841804645e-06
-    UNCORRECTED P-VALUE     1.49023707732037e-07
-    NUM_ANNOTATIONS 3 of 19 in the list, vs 5 of 7300 in the genome
+    CORRECTED P-VALUE       1.81352587001198e-08
+    UNCORRECTED P-VALUE     4.90142127030265e-10
+    FDR_RATE        0.00%
+    EXPECTED_FALSE_POSITIVES        0.00
+    NUM_ANNOTATIONS 4 of 19 in the list, vs 6 of 7300 in the genome
     The genes annotated to this node are:
-    STR3, MET6, MET2
+    MET1, STR3, MET2, MET6
     
-    -- 17 of 30 --
+    -- 19 of 37 --
     GOID    GO:0009067
     TERM    aspartate family amino acid biosynthesis
-    CORRECTED P-VALUE       0.000797495232457435
-    UNCORRECTED P-VALUE     1.19029139172751e-05
-    NUM_ANNOTATIONS 3 of 19 in the list, vs 18 of 7300 in the genome
+    CORRECTED P-VALUE       4.58690073266533e-06
+    UNCORRECTED P-VALUE     1.23970290072036e-07
+    FDR_RATE        0.00%
+    EXPECTED_FALSE_POSITIVES        0.00
+    NUM_ANNOTATIONS 4 of 19 in the list, vs 19 of 7300 in the genome
     The genes annotated to this node are:
-    STR3, MET6, MET2
+    MET1, STR3, MET2, MET6
     
-    -- 18 of 30 --
+    -- 20 of 37 --
+    GOID    GO:0000101
+    TERM    sulfur amino acid transport
+    CORRECTED P-VALUE       5.51387718608536e-06
+    UNCORRECTED P-VALUE     1.49023707732037e-07
+    FDR_RATE        0.00%
+    EXPECTED_FALSE_POSITIVES        0.00
+    NUM_ANNOTATIONS 3 of 19 in the list, vs 5 of 7300 in the genome
+    The genes annotated to this node are:
+    MMP1, MUP1, SAM3
+    
+    -- 21 of 37 --
     GOID    GO:0009069
     TERM    serine family amino acid metabolism
-    CORRECTED P-VALUE       0.00129343686399999
-    UNCORRECTED P-VALUE     1.93050278208954e-05
-    NUM_ANNOTATIONS 3 of 19 in the list, vs 21 of 7300 in the genome
+    CORRECTED P-VALUE       0.00108164983836796
+    UNCORRECTED P-VALUE     2.92337794153502e-05
+    FDR_RATE        0.10%
+    EXPECTED_FALSE_POSITIVES        0.02
+    NUM_ANNOTATIONS 3 of 19 in the list, vs 24 of 7300 in the genome
     The genes annotated to this node are:
-    MET17, MET2, YIL074C
+    MET2, YIL074C, MET17
     
-    -- 19 of 30 --
+    -- 22 of 37 --
     GOID    GO:0006865
     TERM    amino acid transport
-    CORRECTED P-VALUE       0.00520224372539958
-    UNCORRECTED P-VALUE     7.76454287373071e-05
-    NUM_ANNOTATIONS 3 of 19 in the list, vs 33 of 7300 in the genome
+    CORRECTED P-VALUE       0.00406448231248132
+    UNCORRECTED P-VALUE     0.000109850873310306
+    FDR_RATE        0.18%
+    EXPECTED_FALSE_POSITIVES        0.04
+    NUM_ANNOTATIONS 3 of 19 in the list, vs 37 of 7300 in the genome
     The genes annotated to this node are:
     MMP1, MUP1, SAM3
     
-    -- 20 of 30 --
+    -- 23 of 37 --
+    GOID    GO:0044249
+    TERM    cellular biosynthesis
+    CORRECTED P-VALUE       0.00858173589265904
+    UNCORRECTED P-VALUE     0.000231938807909704
+    FDR_RATE        0.26%
+    EXPECTED_FALSE_POSITIVES        0.06
+    NUM_ANNOTATIONS 9 of 19 in the list, vs 927 of 7300 in the genome
+    The genes annotated to this node are:
+    MET1, MET11, STR3, MET2, ECM17, YIL074C, MET28, MET17, MET6
+    
+    -- 24 of 37 --
     GOID    GO:0015837
-    TERM    amine/polyamine transport
-    CORRECTED P-VALUE       0.0107851312833169
-    UNCORRECTED P-VALUE     0.000160972108706222
-    NUM_ANNOTATIONS 3 of 19 in the list, vs 42 of 7300 in the genome
+    TERM    amine transport
+    CORRECTED P-VALUE       0.00888521048932255
+    UNCORRECTED P-VALUE     0.000240140824035745
+    FDR_RATE        0.33%
+    EXPECTED_FALSE_POSITIVES        0.08
+    NUM_ANNOTATIONS 3 of 19 in the list, vs 48 of 7300 in the genome
     The genes annotated to this node are:
     MMP1, MUP1, SAM3
     
-    -- 21 of 30 --
+    -- 25 of 37 --
     GOID    GO:0046942
     TERM    carboxylic acid transport
-    CORRECTED P-VALUE       0.0141676023767647
-    UNCORRECTED P-VALUE     0.00021145675189201
-    NUM_ANNOTATIONS 3 of 19 in the list, vs 46 of 7300 in the genome
+    CORRECTED P-VALUE       0.0100357228763322
+    UNCORRECTED P-VALUE     0.000271235753414384
+    FDR_RATE        0.40%
+    EXPECTED_FALSE_POSITIVES        0.10
+    NUM_ANNOTATIONS 3 of 19 in the list, vs 50 of 7300 in the genome
     The genes annotated to this node are:
     MMP1, MUP1, SAM3
     
-    -- 22 of 30 --
+    -- 26 of 37 --
     GOID    GO:0015849
     TERM    organic acid transport
-    CORRECTED P-VALUE       0.0151086898836281
-    UNCORRECTED P-VALUE     0.000225502834084001
-    NUM_ANNOTATIONS 3 of 19 in the list, vs 47 of 7300 in the genome
+    CORRECTED P-VALUE       0.0106454218366372
+    UNCORRECTED P-VALUE     0.000287714103692899
+    FDR_RATE        0.46%
+    EXPECTED_FALSE_POSITIVES        0.12
+    NUM_ANNOTATIONS 3 of 19 in the list, vs 51 of 7300 in the genome
     The genes annotated to this node are:
     MMP1, MUP1, SAM3
     
-    -- 23 of 30 --
+    -- 27 of 37 --
     GOID    GO:0009070
     TERM    serine family amino acid biosynthesis
-    CORRECTED P-VALUE       0.0279454982968357
+    CORRECTED P-VALUE       0.0154325886116854
     UNCORRECTED P-VALUE     0.000417096989505011
+    FDR_RATE        0.44%
+    EXPECTED_FALSE_POSITIVES        0.12
     NUM_ANNOTATIONS 2 of 19 in the list, vs 12 of 7300 in the genome
     The genes annotated to this node are:
-    MET17, YIL074C
+    YIL074C, MET17
+    
+    -- 28 of 37 --
+    GOID    GO:0009058
+    TERM    biosynthesis
+    CORRECTED P-VALUE       0.0156316633253993
+    UNCORRECTED P-VALUE     0.000422477387172954
+    FDR_RATE        0.43%
+    EXPECTED_FALSE_POSITIVES        0.12
+    NUM_ANNOTATIONS 9 of 19 in the list, vs 1002 of 7300 in the genome
+    The genes annotated to this node are:
+    MET1, MET11, STR3, MET2, ECM17, YIL074C, MET28, MET17, MET6
 
 =head1 AUTHORS
 

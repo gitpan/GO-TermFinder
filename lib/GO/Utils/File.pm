@@ -24,12 +24,14 @@ use strict;
 use warnings;
 use diagnostics;
 
+use IO::File;
+
 use vars qw (@ISA @EXPORT_OK $VERSION);
 use Exporter;
 @ISA = ('Exporter');
 @EXPORT_OK = qw(GenesFromFile);
 
-$VERSION = 0.11;
+$VERSION = 0.12;
 
 ##########################################################################
 sub GenesFromFile{
@@ -48,14 +50,14 @@ Usage:
 
     my $filename = shift;
 
-    open (IN,  $filename) || die "Cannot open $filename : $!";
+    my $fh = IO::File->new($filename, q{<} )|| die "Cannot open $filename : $!";
 
     my @genes;
     my @lines;
 
     my $var = chr(13); # to deal with Mac end of line 
 
-    while (<IN>){
+    while (<$fh>){
 
 	if (/$var/o){ 
 
@@ -85,7 +87,7 @@ Usage:
 
     }
 
-    close IN;
+    $fh->close;
 
     return @genes;
 

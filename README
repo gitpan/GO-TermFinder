@@ -1,4 +1,4 @@
-GO-TermFinder version 0.71
+GO-TermFinder version 0.80
 ==========================
 
 This set of modules can be have been developed under the auspices of
@@ -50,16 +50,16 @@ distribution:
 
 First decompress the gzipped tarfile, e.g:
 
-   tar zxvf GO-TermFinder-0.71.tar.gz
+   tar zxvf GO-TermFinder-0.8.tar.gz
 
 or:
 
-   gunzip GO-TermFinder-0.71.tar.gz
-   tar xvf GO-TermFinder-0.71.tar
+   gunzip GO-TermFinder-0.8.tar.gz
+   tar xvf GO-TermFinder-0.8.tar
 
 Then change into the created directory:
 
-   cd GO-TermFinder-0.71
+   cd GO-TermFinder-0.8
 
 Then actually install it, using the following commands:
 
@@ -92,26 +92,10 @@ before the other 'use' statements.  Also, during the 'make install'
 stage, there will be some complaints about not be able to install man
 pages, but you can happily ignore these.
 
-In the case that you get any failures during 'make test', please send
-me the full output of 'make test', and let me know what version or
-perl you are using, and on what platform you are running.
-
-Note, when the tests are running, it may say something like:
-
-t/GO-TermFinder.............................ok 1108/3236# Test 1112 got: '8' (t/GO-TermFinder.t at line 238 *TODO*)
-t/GO-TermFinder.............................ok 1111/3236#      Expected: '7' 
-t/GO-TermFinder.............................ok 1112/3236#  t/GO-TermFinder.t line 238 is: ok($hypothesis->{TOTAL_NUM_ANNOTATIONS},
-
-this is ok - it is not a failure - it is merely noting that there is a
-test marke as TODO, that currently gives the wrong answer.
-
-Also, if you have the Test::Pod::Coverage module installed, you will
-get a couple of warnings, like:
-
-t/pod-coverage..............................ok 1/16# GO::Annotation: no public symbols defined
-t/pod-coverage..............................ok 5/16# GO::Reference: no public symbols defined
-
-but you can happily ignore these, as everything has full, valid pod!
+In the case that you get any failures during 'make test', rerun the
+tests as 'make test TEST_VERBOSE=1' and send me the full output, and
+let me know what version or perl you are using, and on what platform
+you are running.
 
 DEPENDENCIES
 
@@ -148,19 +132,34 @@ The Perl interface to GraphViz is available from:
 http://search.cpan.org/dist/GraphViz/
 
 Note that Graphviz also has some tricky requirements, in that you also
-need to install the C version of Graphviz, as noted in the README for
-the Perl version of GraphViz.  There are precompiled binaries
-available for most platforms from :
+need to install the C version of Graphviz (specifically the dot
+binary), as noted in the README for the Perl version of GraphViz.
+There are precompiled binaries available for most platforms from :
 
 http://www.research.att.com/sw/tools/graphviz/
 
-On MacOSX, the easiest way to install the C version of GraphViz is to use fink
-(http://fink.sourceforge.net/), using the command:
+On MacOSX, the easiest way to install the C version of GraphViz is to
+grab the installer from:
 
-   fink install graphviz
+http://www.ryandesign.com/graphviz/
+
+Note, e.g. for version 2.12, this will install the binaries under :
+
+/usr/local/graphviz-2.12/bin/
+
+which the Perl Graphviz won't find, unless you add that to your PATH
+environment, or, make a link to the dot binary like:
+
+sudo ln -s /usr/local/graphviz-2.12/bin/dot /usr/local/bin/dot
+
+as /usr/local/bin/ is probably already in your PATH.
 
 You will still need to install the Perl interface to GraphViz manually
 though.
+
+Also not, if the graphvic output looks funky, then the versions of the
+Perl Graphviz and the dot binary may be incompatible - try updating
+both to the latest versions.
 
 The Perl version of GraphViz requires the following modules be installed:
 
@@ -217,5 +216,5 @@ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-Copyright (C) 2003-2006 Gavin Sherlock, Stanford University
+Copyright (C) 2003-2007 Gavin Sherlock, Stanford University
 

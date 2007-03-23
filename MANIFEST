@@ -16,6 +16,7 @@ lib/GO/AnnotationProvider.pm
 lib/GO/AnnotationProvider/AnnotationParser.pm
 lib/GO/Node.pm
 lib/GO/OntologyProvider.pm
+lib/GO/OntologyProvider/OboParser.pm
 lib/GO/OntologyProvider/OntologyParser.pm
 lib/GO/Reference.pm
 lib/GO/TermFinder.pm
@@ -38,14 +39,14 @@ native/Native_wrap.cxx
 README
 t/gene_association.sgd
 t/gene_association.test
+t/gene_ontology_edit.obo
 t/GO-AnnotatedGene.t
 t/GO-AnnotationProvider-AnnotationParser.t
 t/GO-Node.t
-t/GO-OntologyProvider-OntologyParser.t
+t/GO-OntologyProvider-OboParser.t
 t/GO-TermFinder-Native.t
-t/GO-TermFinder.t
+t/GO-TermFinder-Obo.t
 t/pod-coverage.t
 t/pod.t
-t/process.ontology
 t/strict.t
 VERSION

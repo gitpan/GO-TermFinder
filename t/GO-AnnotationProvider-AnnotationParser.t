@@ -1,18 +1,20 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use diagnostics;
+
 use Test;
-BEGIN { plan tests => 64 };
+BEGIN { plan tests => 68 };
 
 # File       : GO-AnnotationProvider-AnnotationParser.t
 # Author     : Gavin Sherlock
 # Date Begun : March 9th 2002
 
-# $Id: GO-AnnotationProvider-AnnotationParser.t,v 1.3 2003/11/26 18:48:56 sherlock Exp $
+# $Id: GO-AnnotationProvider-AnnotationParser.t,v 1.4 2007/03/18 01:37:14 sherlock Exp $
 
 # This file forms a set of tests for the
 # GO::AnnotationProvider::AnnotationParser class
-
-use strict;
-use warnings;
-use diagnostics;
 
 use GO::AnnotationProvider::AnnotationParser;
 
@@ -50,27 +52,30 @@ foreach my $method (@methods){
 
 ok($annotations->file, $associationsFile);
 
-ok(scalar($annotations->allDatabaseIds), 6905); # this number has been checked
+ok(scalar($annotations->allDatabaseIds), 6470); # this number has been checked
 
 ok(scalar($annotations->allDatabaseIds), scalar($annotations->allStandardNames));
 
 ok(scalar($annotations->allDatabaseIds), $annotations->numAnnotatedGenes);
 
-# now lets check actin - should be annotated to 5 components
+# now lets check actin (ACT1, S000001855) - should be annotated directly to the following 8 components
 
-my %components = ("GO:0005884" => undef,       
-		  "GO:0000141" => undef,
+my %components = ("GO:0000123" => undef,
 		  "GO:0000142" => undef,
-		  "GO:0005857" => undef,
-		  "GO:0000123" => undef);
+		  "GO:0000812" => undef,
+		  "GO:0005884" => undef,
+		  "GO:0030479" => undef, 
+		  "GO:0030482" => undef,
+		  "GO:0031011" => undef,
+		  "GO:0043189" => undef);
 
 # NOTE - should think about changing API of goIdsByDatabaseId to
 # return an array, rather than a reference to one....
 
-my $goidsRef = $annotations->goIdsByDatabaseId(databaseId => "S0001855",
+my $goidsRef = $annotations->goIdsByDatabaseId(databaseId => "S000001855",
 					       aspect     => 'C');
 
-ok(scalar(@{$goidsRef}), 5);
+ok(scalar(@{$goidsRef}), scalar keys %components);
 
 foreach my $goid (@{$goidsRef}){
 
@@ -82,26 +87,27 @@ foreach my $goid (@{$goidsRef}){
 
 my %functions = ("GO:0005200" => undef);
 
-$goidsRef = $annotations->goIdsByDatabaseId(databaseId => "S0004550",
+$goidsRef = $annotations->goIdsByDatabaseId(databaseId => "S000004550",
 					    aspect     => 'F');
 
-ok(scalar(@{$goidsRef}), 1);
+ok(scalar(@{$goidsRef}), scalar keys %functions);
 
 ok(exists($functions{$goidsRef->[0]}));
 
-# now check processes for CDC8 - should be annotated to 6 nodes
+# now check processes for CDC8 - should be annotated to 7 nodes
 
-my %processes = ("GO:0006233" => undef,
+my %processes = ("GO:0006227" => undef,
+		 "GO:0006233" => undef,
 		 "GO:0006235" => undef,
 		 "GO:0006261" => undef,
 		 "GO:0006276" => undef,
 		 "GO:0006280" => undef,
 		 "GO:0006281" => undef);
 
-$goidsRef = $annotations->goIdsByDatabaseId(databaseId => "S0003818",
+$goidsRef = $annotations->goIdsByDatabaseId(databaseId => "S000003818",
 					    aspect     => 'P');
 
-ok(scalar(@{$goidsRef}), 6);
+ok(scalar(@{$goidsRef}), scalar keys %processes);
 
 foreach my $goid (@{$goidsRef}){
 
@@ -153,7 +159,7 @@ ok($isAmbiguousName, scalar(@ambiguousNames));
 
 # now check some specific data
 
-ok($annotations->nameIsDatabaseId("S0003818"));
+ok($annotations->nameIsDatabaseId("S000003818"));
 
 ok($annotations->nameIsStandardName("ACT1"));
 
@@ -237,8 +243,11 @@ ok($fakeAnnotations->nameIsAmbiguous('GeNe5'));
 CVS info is listed here:
 
  # $Author: sherlock $
- # $Date: 2003/11/26 18:48:56 $
+ # $Date: 2007/03/18 01:37:14 $
  # $Log: GO-AnnotationProvider-AnnotationParser.t,v $
+ # Revision 1.4  2007/03/18 01:37:14  sherlock
+ # various updates to the tests
+ #
  # Revision 1.3  2003/11/26 18:48:56  sherlock
  # finished adding various tests that deal with case sensitivity issues
  # and ambiguity of gene names.  All tests appear to pass, finally!

@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Id: analyze.pl,v 1.6 2004/05/06 01:35:52 sherlock Exp $
+# $Id: analyze.pl,v 1.8 2007/03/18 05:46:23 sherlock Exp $
 
 # Date   : 16th October 2003
 # Author : Gavin Sherlock
@@ -33,9 +33,11 @@ use strict;
 use warnings;
 use diagnostics;
 
+use IO::File;
+
 use GO::TermFinder;
 use GO::AnnotationProvider::AnnotationParser;
-use GO::OntologyProvider::OntologyParser;
+use GO::OntologyProvider::OboParser;
 
 use GO::TermFinderReport::Text;
 
@@ -48,6 +50,13 @@ $|=1;
 sub Usage{
 ###################################################################################
 
+    my $message = shift;
+
+    if (defined $message){
+
+	print $message, "\n";
+
+    }
 
     print <<USAGE;
 
@@ -59,18 +68,16 @@ output terms with a corrected P-value of <= 0.05.
 
 It will use the first supplied argument as the annotation file, the
 second argument as the expected number of genes within the organism,
-and all subsequent files as ones containing lists of genes.  You need
-to provide the ontology files in the same directory from which you are
-executing this script, and the GO-TermFinder libraries must be in your
-path.
+the third argument is the name of the obo file, and all subsequent
+files as ones containing lists of genes.
 
 Usage:
 
-analyze.pl <annotation_file> <numGenes> <file1> <file2> <file3> ... <fileN>
+analyze.pl <annotation_file> <numGenes> <obofile> <file1> <file2> <file3> ... <fileN>
 
 e.g.
 
-analyze.pl gene_association.sgd 7200 file1.txt file2.txt file3.txt
+analyze.pl ../t/gene_association.sgd 7200 ../t/gene_ontology_edit.obo genes.txt genes2.txt
 
 USAGE
 
@@ -87,12 +94,24 @@ USAGE
 
 my $annotationFile = shift;
 my $totalNum       = shift;
+my $oboFile        = shift;
+
+if ($oboFile !~ /\.obo$/){
+
+    # require the obo file to have a .obo extension
+
+    &Usage("Your obo file does not have a .obo extension.");
+
+}
 
 # now set up the objects we need
 
-my $process   = GO::OntologyProvider::OntologyParser->new(ontologyFile => "process.ontology");
-my $component = GO::OntologyProvider::OntologyParser->new(ontologyFile => "component.ontology");
-my $function  = GO::OntologyProvider::OntologyParser->new(ontologyFile => "function.ontology");
+my $process   = GO::OntologyProvider::OboParser->new(ontologyFile => $oboFile,
+						     aspect       => 'P');
+my $component = GO::OntologyProvider::OboParser->new(ontologyFile => $oboFile,
+						     aspect       => 'C');
+my $function  = GO::OntologyProvider::OboParser->new(ontologyFile => $oboFile,
+						     aspect       => 'F');
 
 my $annotation = GO::AnnotationProvider::AnnotationParser->new(annotationFile=>$annotationFile);
 
@@ -126,19 +145,6 @@ foreach my $file (@ARGV){
 
     my (@list, @notFound, @ambiguous);
 
-    ######
-    ######
-
-    # NOTE
-    #
-    # Need to eliminate the CategorizeGenes use, as it is not good
-    # practice to throw things out just because they don't match to
-    # things in the annotation file.  See batchGOView.pl for how it
-    # should really be done
-
-    ######
-    ######
-
     CategorizeGenes(annotation  => $annotation,
 		    genes       => \@genes,
 		    ambiguous   => \@ambiguous,
@@ -147,26 +153,28 @@ foreach my $file (@ARGV){
 
     my $outfile = $file.".terms";
 
-    open (OUT, ">".$outfile) || die "Cannot make $outfile : $!"; 
+    my $fh = IO::File->new($outfile, q{>} )|| die "Cannot make $outfile : $!";
+
+    print "Results being put in $outfile\n";
 
     if (@list){
 
-	print OUT "The following gene(s) will be considered:\n\n";
+	print $fh "The following gene(s) will be considered:\n\n";
 
 	foreach my $gene (@list){
 
-	    print OUT $gene, "\t", $annotation->standardNameByName($gene), "\n";
+	    print $fh $gene, "\t", $annotation->standardNameByName($gene), "\n";
 
 	}
 
-	print OUT "\n";
+	print $fh "\n";
 
     }else{
 
-	print OUT "None of the gene names were recognized\n";
-	print OUT "They were:\n\n";
-	print OUT join("\n", @notFound), "\n";
-	close OUT;
+	print $fh "None of the gene names were recognized\n";
+	print $fh "They were:\n\n";
+	print $fh join("\n", @notFound), "\n";
+	$fh->close;
 
 	next;
 
@@ -174,44 +182,44 @@ foreach my $file (@ARGV){
 
     if (@ambiguous){
 
-	print OUT "The following gene(s) are ambiguously named, and so will not be used:\n";
-	print OUT join("\n", @ambiguous), "\n\n";
+	print $fh "The following gene(s) are ambiguously named, and so will not be used:\n";
+	print $fh join("\n", @ambiguous), "\n\n";
 
     }
 
     if (@notFound){
 
-	print OUT "The following gene(s) were not recognized, and will not be considered:\n\n";
-	print OUT join("\n", @notFound), "\n\n";
+	print $fh "The following gene(s) were not recognized, and will not be considered:\n\n";
+	print $fh join("\n", @notFound), "\n\n";
 
     }
 
     foreach my $termFinder ($termFinderP, $termFinderC, $termFinderF){
 
-	print OUT "Finding terms for ", $termFinder->aspect, "\n\n";
+	print $fh "Finding terms for ", $termFinder->aspect, "\n\n";
 
 	my @pvalues = $termFinder->findTerms(genes        => \@list,
-					     calculateFDR => 1);	
+					     calculateFDR => 1);
 
 	my $numHypotheses = $report->print(pvalues  => \@pvalues,
 					   numGenes => scalar(@list),
 					   totalNum => $totalNum,
 					   cutoff   => $cutoff,
-					   fh       => \*OUT);
+					   fh       => $fh);
 
 	# if they had no significant P-values
 
 	if ($numHypotheses == 0){
 
-	    print OUT "No terms were found for this aspect with a corrected P-value <= $cutoff.\n";
+	    print $fh "No terms were found for this aspect with a corrected P-value <= $cutoff.\n";
 
 	}
 
-	print OUT "\n\n";
+	print $fh "\n\n";
 
     }
 
-    close OUT;    
+    $fh->close;    
     
 }
 
@@ -231,18 +239,16 @@ only output terms with a corrected P-value of <= 0.05.
 
 It will use the first supplied argument as the annotation file, the
 second argument as the expected number of genes within the organism,
-and all subsequent files as ones containing lists of genes.  You need
-to provide the ontology files in the same directory from which you are
-executing this script, and the GO-TermFinder libraries must be in your
-path.
+the third argument is the name of the obo file, and all subsequent
+files as ones containing lists of genes.
 
 Usage:
 
-    analyze.pl <annotation_file> <numGenes> <file1> <file2> <file3> ... <fileN>
+    analyze.pl <annotation_file> <numGenes> <obofile> <file1> <file2> <file3> ... <fileN>
 
 e.g.
 
-    analyze.pl gene_association.sgd 7200 file1.txt file2.txt file3.txt
+    analyze.pl ../t/gene_association.sgd 7200 ../t/gene_ontology_edit.obo genes.txt genes2.txt
 
 An example output file might look like this:
 
