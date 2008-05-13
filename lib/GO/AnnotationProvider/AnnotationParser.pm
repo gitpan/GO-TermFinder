@@ -5,7 +5,7 @@ package GO::AnnotationProvider::AnnotationParser;
 # Date Begun : Summer 2001
 # Rewritten  : September 25th 2002
 
-# $Id: AnnotationParser.pm,v 1.34 2007/03/18 03:09:05 sherlock Exp $
+# $Id: AnnotationParser.pm,v 1.35 2008/05/13 23:06:16 sherlock Exp $
 
 # Copyright (c) 2003 Gavin Sherlock; Stanford University
 
@@ -179,17 +179,18 @@ my $DEBUG = 0;
 # constants for instance attribute name
 
 
-my $kDatabaseName      = $PACKAGE.'::__databaseName';      # stores the name of the annotating database
-my $kFileName          = $PACKAGE.'::__fileName';          # stores the name of the file used to instantiate the object
-my $kNameToIdMap       = $PACKAGE.'::__nameToIdMap';       # stores a map of all names for a gene to the database id
-my $kAmbiguousNames    = $PACKAGE.'::__ambiguousNames';    # stores the database id's for all ambiguous names
-my $kIdToStandardName  = $PACKAGE.'::__idToStandardName';  # stores a map of database id's to standard names of all entities
-my $kStandardNameToId  = $PACKAGE.'::__StandardNameToId';  # stores a map of standard names to their database id's
-my $kUcIdToId          = $PACKAGE.'::__ucIdToId';          # stores a map of uppercased databaseIds to the databaseId
-my $kUcStdNameToStdName= $PACKAGE.'::__ucStdNameToStdName';# stores a map of uppercased standard names to the standard name
-my $kNameToCount       = $PACKAGE.'::__nameToCount';       # stores a case sensitive map of the number of times a name has been seen
-my $kGoids             = $PACKAGE.'::__goids';             # stores all the goid annotations
-my $kNumAnnotatedGenes = $PACKAGE.'::__numAnnotatedGenes'; # stores number of genes with annotations, per aspect
+my $kDatabaseName           = $PACKAGE.'::__databaseName';           # stores the name of the annotating database
+my $kFileName               = $PACKAGE.'::__fileName';               # stores the name of the file used to instantiate the object
+my $kNameToIdMapInsensitive = $PACKAGE.'::__nameToIdMapInsensitive'; # stores a case insensitive map of all unambiguous names for a gene to the database id
+my $kNameToIdMapSensitive   = $PACKAGE.'::__nameToIdMapSensitive';   # stores a case sensitive map of all names where a particular casing is unambiguous for a gene to the database id
+my $kAmbiguousNames         = $PACKAGE.'::__ambiguousNames';         # stores the database id's for all ambiguous names
+my $kIdToStandardName       = $PACKAGE.'::__idToStandardName';       # stores a map of database id's to standard names of all entities
+my $kStandardNameToId       = $PACKAGE.'::__StandardNameToId';       # stores a map of standard names to their database id's
+my $kUcIdToId               = $PACKAGE.'::__ucIdToId';               # stores a map of uppercased databaseIds to the databaseId
+my $kUcStdNameToStdName     = $PACKAGE.'::__ucStdNameToStdName';     # stores a map of uppercased standard names to the standard name
+my $kNameToCount            = $PACKAGE.'::__nameToCount';            # stores a case sensitive map of the number of times a name has been seen
+my $kGoids                  = $PACKAGE.'::__goids';                  # stores all the goid annotations
+my $kNumAnnotatedGenes      = $PACKAGE.'::__numAnnotatedGenes';      # stores number of genes with annotations, per aspect
 
 my $kAmbiguousNamesSensitive = $PACKAGE.'::__ambiguousNamesSensitive'; # names (case sensitive) that are ambiguous
 
@@ -315,7 +316,7 @@ Usage:
 	
 	++$lineNo;
 	
-	next if /^!/; # skip comment lines
+	next if $_ =~ m/^!/; # skip comment lines
 	
 	chomp;
 
@@ -520,6 +521,30 @@ Usage:
 
     }
 
+    # now, we have to make some alteration to some hashes to support
+    # our API for case insensitivity.  The API says that if a name is
+    # supplied that would otherwise be ambiguous, but has a unique
+    # casing, then we will accept it as that unique cased version.
+    # Thus, we need to make sure that our $kNameToIdMapSensitive hash
+    # only tracks those names that were unique in a particular case
+
+    foreach my $name (keys %{$self->{$kNameToCount}}){
+
+	# go through the has that has a count of each name
+
+	if ($self->{$kNameToCount}{$name} > 1 || exists $self->{$kNameToIdMapInsensitive}{uc($name)}){
+
+	    # if it was seen more than once, or is known to be unique
+	    # in a case insensitive fashion, then delete it.  This
+	    # will leave just those that are unique in a case
+	    # sensitive fashion
+
+	    delete $self->{$kNameToIdMapSensitive}{$name};
+
+	}
+
+    }
+
     return ($self);
 
 }
@@ -547,7 +572,7 @@ sub __init{
     
     while (<$annotationsFh>){
 
-	next if /^!/; # skip commented lines
+	next if $_ =~ m/^!/; # skip commented lines
 
 	chomp;
 
@@ -677,6 +702,16 @@ sub __mapNamesToDatabaseId{
 
     foreach my $name ($databaseId, $standardName, @aliases){
 
+        # here, we simply store, in case sensitive fashion, a mapping
+        # of the name to databaseId.  Later, this map will be
+        # modified, so it only contains those names where the case
+        # sensitive version is unique.  We need this map to fulfill
+        # the API requirements that if databaseIdByName() is called
+        # with a name that is ambiguous, but the casing is unique,
+        # then it will correctly determine the casing match
+
+	$self->{$kNameToIdMapSensitive}{$name} = $databaseId;
+
 	my $ucName = uc($name); # cache uppercased version for efficiency
 
 	# occasionally, a standard name is also listed in the aliases,
@@ -707,7 +742,7 @@ sub __mapNamesToDatabaseId{
 	# if the case insensitive version of the name has already been
 	# seen with the same database id, it is still not ambiguous
 
-	if (exists $self->{$kNameToIdMap}{$ucName} && $self->{$kNameToIdMap}{$ucName} ne $databaseId){
+	if (exists $self->{$kNameToIdMapInsensitive}{$ucName} && $self->{$kNameToIdMapInsensitive}{$ucName} ne $databaseId){
 
 	    # so record what it maps to
 
@@ -717,11 +752,11 @@ sub __mapNamesToDatabaseId{
 	    
 	    # and previously seen databaseId
 
-	    push (@{$self->{$kAmbiguousNames}{$ucName}}, $self->{$kNameToIdMap}{$ucName});
+	    push (@{$self->{$kAmbiguousNames}{$ucName}}, $self->{$kNameToIdMapInsensitive}{$ucName});
 
 	    # and now delete the previously seen databaseId from the unambiguous mapping
 
-	    delete $self->{$kNameToIdMap}{$ucName};
+	    delete $self->{$kNameToIdMapInsensitive}{$ucName};
 
 	}elsif (exists $self->{$kAmbiguousNames}{$ucName}){ # we already know it's ambiguous
 
@@ -731,7 +766,7 @@ sub __mapNamesToDatabaseId{
 
 	}else{ # otherwise simply map it unambiguously for now, as we haven't see the name before
 
-	    $self->{$kNameToIdMap}{$ucName} = $databaseId;
+	    $self->{$kNameToIdMapInsensitive}{$ucName} = $databaseId;
 
 	}
 
@@ -1435,7 +1470,12 @@ Usage:
 
     die "You have supplied an ambiguous name to databaseIdByName" if ($self->nameIsAmbiguous($name));
 
-    return ($self->{$kNameToIdMap}{uc($name)});
+    # give them the case insensitive unique map, or if there is none,
+    # then the case sensitive version
+
+    my $databaseId = $self->{$kNameToIdMapInsensitive}{uc($name)} || $self->{$kNameToIdMapSensitive}{$name};
+
+    return $databaseId;
 
 }
 
@@ -1608,7 +1648,7 @@ or:
 
     if (!defined ($aspect)){ # if there's no aspect
 
-	$isAnnotated = (exists ($self->{$kNameToIdMap}{$ucName}) || exists ($self->{$kAmbiguousNames}{$ucName}));
+	$isAnnotated = (exists ($self->{$kNameToIdMapInsensitive}{$ucName}) || exists ($self->{$kAmbiguousNames}{$ucName}));
 	
     }else{
 
@@ -1847,8 +1887,12 @@ Usage:
 CVS info is listed here:
 
  # $Author: sherlock $
- # $Date: 2007/03/18 03:09:05 $
+ # $Date: 2008/05/13 23:06:16 $
  # $Log: AnnotationParser.pm,v $
+ # Revision 1.35  2008/05/13 23:06:16  sherlock
+ # updated to fix bug with querying with a name that was unambiguous when
+ # taking its casing into account.
+ #
  # Revision 1.34  2007/03/18 03:09:05  sherlock
  # couple of PerlCritic suggested improvements, and an extra check to
  # make sure that the cardinality between standard names and database ids

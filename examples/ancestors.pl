@@ -1,10 +1,10 @@
 #!/usr/bin/perl
 
-# $Id: ancestors.pl,v 1.6 2007/03/18 05:45:31 sherlock Exp $
+# $Id: ancestors.pl,v 1.7 2007/11/15 18:30:47 sherlock Exp $
 
 # License information (the MIT license)
 
-# Copyright (c) 2003 Gavin Sherlock; Stanford University
+# Copyright (c) 2003, 2007 Gavin Sherlock; Stanford University
 
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation files
@@ -43,7 +43,7 @@ my ($goid, $ontologyFile, $aspect) = @ARGV;
 my $ontology = GO::OntologyProvider::OboParser->new(ontologyFile => $ontologyFile,
 						    aspect       => $aspect);
 
-my $node = $ontology->nodeFromId($goid) || &Usage("No GO term matches your goid : $goid");
+my $node = $ontology->nodeFromId($goid) || &Usage("No GO term matches your goid ($goid) in the aspect ($aspect) that you provided");
 
 my @pathsToRoot = $node->pathsToRoot;
 
@@ -69,7 +69,9 @@ sub Usage{
 
     print "Usage :
 
-ancestors.pl <goid> <obo_file> <aspect>\n\n";
+ancestors.pl <goid> <obo_file> <aspect>
+
+Where aspect is P, C or F.  Note, the provided GOID must be for a GO term in the aspect that you provide.\n\n";
 
     exit;
 

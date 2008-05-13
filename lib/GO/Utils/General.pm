@@ -97,6 +97,8 @@ will be populated by this function.
 
 	}else{
 
+	    print "not found!\n";
+
 	    push(@{$notFoundRef}, $gene);
 
 	}

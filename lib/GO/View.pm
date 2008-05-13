@@ -12,6 +12,11 @@ package GO::View;
 
 # POD documentation - main docs before the code
 
+# TODO
+
+# have a much better options handling set of code, probably based on Getopt::Long
+# see http://www.perl.com/pub/a/2007/07/12/options-and-configuration.html
+
 =pod
 
 =head1 NAME
@@ -160,7 +165,7 @@ modify it under the same terms as Perl itself.
 
 =head1 APPENDIX
 
-The rest of the documentation details each of the public methods. 
+The rest of the documentation details each of the public methods.
 
 =cut
 
@@ -1040,7 +1045,7 @@ sub _createAndShowImage {
     #
     # http://www.research.att.com/~erg/graphviz/info/lang.html
 
-    if (1){#defined $self->{MAKE_PS} && $self->{MAKE_PS}){
+    if (defined $self->{MAKE_PS} && $self->{MAKE_PS}){
 
 	my $file = $self->{IMAGE_FILE};
 
@@ -2287,6 +2292,13 @@ sub _initPvaluesGeneNamesDescendantGoids {
 # TermFinder analysis, and records various information that is
 # subsequently used to construct the image.
 
+# TODO - naming of the $pvalue variable and _termFinder methods is
+# very poor, and misleading.  This should be changed.
+#
+# TODO - currently, when we compare the maxTopNodeToShow, we shouldn't
+# increment the count when a node that is being added is the parent or
+# child of a node already on the graph.
+
     my ($self) = @_;
  
     my %foundGoid;
@@ -2365,9 +2377,9 @@ sub _initPvaluesGeneNamesDescendantGoids {
 		# directly annotated to this node if it is a
 		# descendant of the '$ancestorNode', which we know
 		# passes the p-value cut-off, or if it is the node
-		# itself.  In this a way of we only record nodes to
-		# which our genes of interest are annotated if they
-		# have contributed to the count associated with the
+		# itself.  In this way, we only record nodes to which
+		# our genes of interest are annotated if they have
+		# contributed to the count associated with the
 		# significant '$ancestorNode', and thus prune the
 		# tree, as we don't show all nodes to which any of the
 		# genes are annotated.
@@ -2415,9 +2427,8 @@ sub _initPvaluesGeneNamesDescendantGoids {
     $self->{PVALUE_HASH_REF_FOR_GOID}    = \%pvalue4goid;
     $self->{GENE_NAME_HASH_REF_FOR_GOID} = \%loci4goid;
 
-    # and return the number of top nodes recorded (don't know why, and
-    # doubt it's an accurate reflection of the number of top nodes
-    # that will actually be displayed
+    # and return the number of top nodes recorded, which is used to
+    # decide whether to print the graph or not.
 
     return $count;
 

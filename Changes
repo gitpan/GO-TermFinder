@@ -1,5 +1,49 @@
 Revision history for GO-TermFinder group of modules.
 
+0.81 Tue May 13 16:06:55 2008
+
+     	- GO::TermFinder
+
+	Made totalNumGenes a public method, which returns the total
+	number of genes that are in the background set of genes from
+	which the genes of interest were drawn.  Unannotated genes are
+	included in this count.  This allowed me to fix a bug in
+	analyze.pl, where it didn't always report the correct number
+	of genes in the background.
+
+     	- GO::AnnotationProvider::AnnotationParser
+
+	Fixed bug in handling a name that was ambiguous when
+	considered in a case-insensitive fashion, but unambiguous when
+	considered in a case-sensitive fashion.  Thanks to Robert
+	Flight for the bug report.
+
+	- GO::OntologyProvider::OboParser
+
+	Added additional logic to detect an error in the obo file if a
+	node and a parent are in different namespaces, as this
+	previously produced a fatal error with a cryptic message.
+
+	- GO::TermFinder
+
+	Prevent crash that could occur when there were no GO nodes
+	tested - assertion that correction factor had to be >=1 was
+	incorrect in this case, which could cause the script to die.
+	Now correctly recognizes this.  Thanks to Mark Schroeder at
+	Princeton for pointing this out.
+
+	- GO::View
+
+	I had previously commented out a check, that resulted in
+	postscript images always being generated.  Now they are only
+	generated when requested.
+
+	GO-TermFinder-Obo.t
+
+	Tweaked test to be regex instead of equality, as different
+	Perls might add different things to exceptions.  This fixes a
+	failure I was seeing on Solaris.
+
 0.80 Thu Mar 22 18:45:29 2007
 
 	- GO::OntologyProvider::OboParser

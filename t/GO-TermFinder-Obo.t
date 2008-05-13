@@ -11,7 +11,7 @@ BEGIN { plan tests => 7991 };
 # Author     : Gavin Sherlock
 # Date Begun : September 1st 2003
 
-# $Id: GO-TermFinder-Obo.t,v 1.1 2007/03/18 01:33:14 sherlock Exp $
+# $Id: GO-TermFinder-Obo.t,v 1.2 2007/11/15 18:34:39 sherlock Exp $
 
 # This file forms a set of tests for the GO::TermFinder class
 
@@ -511,7 +511,7 @@ eval {
 
 };
 
-ok($@, "None of the genes provided for analysis are found in the background population.\n", "should die if genes not in background");
+ok($@, qr/None of the genes provided for analysis are found in the background population/, "should die if genes not in background");
 
 # now some tests that check that we have GO::TermFinder working
 # correctly with respect to the aspect node - in this case, test the
@@ -661,8 +661,13 @@ sub compareHypotheses{
  CVS information:
 
  # $Author: sherlock $
- # $Date: 2007/03/18 01:33:14 $
+ # $Date: 2007/11/15 18:34:39 $
  # $Log: GO-TermFinder-Obo.t,v $
+ # Revision 1.2  2007/11/15 18:34:39  sherlock
+ # Tweaked test to be regex instead of equality, as different Perls might
+ # add different things to exceptions.  This fixes a failure I was seeing
+ # on Solaris.
+ #
  # Revision 1.1  2007/03/18 01:33:14  sherlock
  # Adding new test files
  #

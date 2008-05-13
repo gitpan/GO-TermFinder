@@ -120,7 +120,6 @@ my $termFinderP = GO::TermFinder->new(annotationProvider=> $annotation,
 				      totalNumGenes     => $totalNum,
 				      aspect            => 'P');
 
-
 my $termFinderC = GO::TermFinder->new(annotationProvider=> $annotation,
 				      ontologyProvider  => $component,
 				      totalNumGenes     => $totalNum,
@@ -182,6 +181,11 @@ foreach my $file (@ARGV){
 
     if (@ambiguous){
 
+	# note, some of these ambiguous names would be perfectly fine
+	# if put into GO::TermFinder if they are also standard names.
+	# Currently the behavior of analyze.pl differs from the
+	# default behavior of GO::TermFinder
+
 	print $fh "The following gene(s) are ambiguously named, and so will not be used:\n";
 	print $fh join("\n", @ambiguous), "\n\n";
 
@@ -196,6 +200,13 @@ foreach my $file (@ARGV){
 
     foreach my $termFinder ($termFinderP, $termFinderC, $termFinderF){
 
+	# it's possible that the supplied number of genes on the
+	# command line was less than indicated by the annotation
+	# provider, and thus the TermFinder may have used a larger
+	# number than was entered on the command line.
+
+	my $totalNumGenesUsedInBackground = $termFinder->totalNumGenes;
+
 	print $fh "Finding terms for ", $termFinder->aspect, "\n\n";
 
 	my @pvalues = $termFinder->findTerms(genes        => \@list,
@@ -203,7 +214,7 @@ foreach my $file (@ARGV){
 
 	my $numHypotheses = $report->print(pvalues  => \@pvalues,
 					   numGenes => scalar(@list),
-					   totalNum => $totalNum,
+					   totalNum => $totalNumGenesUsedInBackground,
 					   cutoff   => $cutoff,
 					   fh       => $fh);
 

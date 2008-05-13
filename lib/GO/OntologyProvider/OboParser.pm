@@ -8,7 +8,7 @@ package GO::OntologyProvider::OboParser;
 # Updated to parse the gene ontology info from the obo file.
 # August 2006, Shuai Weng  
 #
-# $Id: OboParser.pm,v 1.3 2007/03/18 05:50:15 sherlock Exp $
+# $Id: OboParser.pm,v 1.4 2007/11/15 18:32:12 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -534,9 +534,31 @@ sub __populatePaths {
 
 	foreach my $parentGoid (@{$self->{$kParent}{$childGoid}}) {
 
-	    my $parentNode = $self->{$kNodes}{$parentGoid};
+	    ### Note, there has been a case in the obo file where
+	    ### there was an error, and a node was listed as having
+	    ### parent in a different aspect.  This results in a fatal
+	    ### run time error, as when the parser reads the file, it
+	    ### only keeps nodes of a given aspect, and is thus left
+	    ### with a dangling reference.  In this case, parentNode
+	    ### will be undef, and the call to addParentNodes ends up
+	    ### in a run time error.  We can add some logic here to
+	    ### give a better error message.
 
-	    ### create connections between child node and its parent
+	    my $parentNode = $self->{$kNodes}{$parentGoid} 
+
+	    || do { 
+
+		print "There is an error in the obo file, where the relationship between ",
+		$childNode->goid,
+		" and one or more of its parents is not correctly defined.\n",
+		"Please check the obo file.\n",
+		"The program is unable to continue.\n\n";
+		
+		exit;
+
+	    };
+
+	    ### create connections between child node and its parent	    
 
 	    $childNode->addParentNodes($parentNode);
   

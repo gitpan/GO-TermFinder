@@ -4,7 +4,7 @@ package GO::TermFinder;
 # Author      : Gavin Sherlock
 # Date Begun  : December 31st 2002
 
-# $Id: TermFinder.pm,v 1.44 2007/03/18 03:04:43 sherlock Exp $
+# $Id: TermFinder.pm,v 1.47 2008/05/13 23:17:33 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -98,7 +98,7 @@ use vars qw ($PACKAGE $VERSION $WARNINGS);
 use GO::Node;
 use GO::TermFinder::Native;
 
-$VERSION = '0.60';
+$VERSION = '0.81';
 $PACKAGE = 'GO::TermFinder';
 
 $WARNINGS = 1; # toggle this to zero if you don't want warnings
@@ -326,13 +326,13 @@ sub __init{
     # check that they said there's at least as many genes in total
     # as the annotation provider says that there is.    
 
-    if (! defined $self->__totalNumGenes){
+    if (! defined $self->totalNumGenes){
 
 	# in this case, no 'totalNumGenes' argument was provided
 
 	$self->{$kArgs}{totalNumGenes} = $populationSize;
 
-    }elsif ($populationSize > $self->__totalNumGenes){
+    }elsif ($populationSize > $self->totalNumGenes){
 
 	# in this case, they are using an annotation provider, and
 	# have provided a totalNumGenes that is less than the number
@@ -341,7 +341,7 @@ sub __init{
 	if ($WARNINGS){
 
 	    print STDERR "The annotation provider indicates that there are more genes than the client indicated.\n";
-	    print STDERR "The annotation provider indicates there are $populationSize, while the client indicated only ", $self->__totalNumGenes, ".\n";
+	    print STDERR "The annotation provider indicates there are $populationSize, while the client indicated only ", $self->totalNumGenes, ".\n";
 	    print STDERR "Thus, assuming the correct total number of genes is that indicated by the annotation provider.\n";
 
 	}
@@ -357,7 +357,7 @@ sub __init{
 
     # adjust those counts if needs be
 
-    if ($populationSize < $self->__totalNumGenes){
+    if ($populationSize < $self->totalNumGenes){
 
     	# if there are extra, entirely unannotated genes (indicated by
     	# the total number of genes provided being greater than the
@@ -374,11 +374,11 @@ sub __init{
 	
 	my $childNodeId = ($self->__ontologyProvider->rootNode->childNodes())[0]->goid;
 
-	$totalNodeCounts->{$rootNodeId} = $self->__totalNumGenes;
+	$totalNodeCounts->{$rootNodeId} = $self->totalNumGenes;
 
-	$totalNodeCounts->{$childNodeId} += ($self->__totalNumGenes - $populationSize);
+	$totalNodeCounts->{$childNodeId} += ($self->totalNumGenes - $populationSize);
 
-	$totalNodeCounts->{$kUnannotatedNode->goid} += ($self->__totalNumGenes - $populationSize);
+	$totalNodeCounts->{$kUnannotatedNode->goid} += ($self->totalNumGenes - $populationSize);
 
     }
 
@@ -409,7 +409,7 @@ sub __init{
     # create a Distributions object, which has C code for all the various 
     # Math that we will do.
 
-    $self->{$kDistributions} = GO::TermFinder::Native::Distributions->new($self->__totalNumGenes);
+    $self->{$kDistributions} = GO::TermFinder::Native::Distributions->new($self->totalNumGenes);
 
 }
 
@@ -835,13 +835,13 @@ sub __checkAndStoreFindTermsArgs{
     # how many genes were used when calculating p-values for
     # annotations
 
-    if (scalar ($self->genesDatabaseIds) > $self->__totalNumGenes){
+    if (scalar ($self->genesDatabaseIds) > $self->totalNumGenes){
 
 	if ($WARNINGS){
 
 	    print "You have provided a list corresponding to ", scalar ($self->genesDatabaseIds), "genes, ",
 	    
-	    "yet you have indicated that there are only ", $self->__totalNumGenes, " in the genome.\n";
+	    "yet you have indicated that there are only ", $self->totalNumGenes, " in the genome.\n";
 	    
 	    print "No probabilities can be calculated.\n";
 
@@ -1145,7 +1145,7 @@ sub __determineDatabaseIdsFromGenes{
 		# databaseId.
 
 		if (defined ($self->__totalNumAnnotatedGenes) && 
-		    $self->__totalNumAnnotatedGenes == $self->__totalNumGenes &&
+		    $self->__totalNumAnnotatedGenes == $self->totalNumGenes &&
 		    $WARNINGS &&
 		    !$self->__isUsingPopulation){
 
@@ -1174,10 +1174,13 @@ sub __determineDatabaseIdsFromGenes{
 	    
 	    pop (@databaseIds); # get rid of the extra
 
-	    # and let's remember what it was, so we can give an
+	    # and let's remember what it was, as well as the previous
+	    # name associated with this databaseId, so we can give an
 	    # appropriate warning
 
 	    $duplicates{$databaseId}{$gene} = undef;
+	    $duplicates{$databaseId}{$databaseIds{$databaseId}} = undef;
+	    
 
 	}
 
@@ -1191,14 +1194,15 @@ sub __determineDatabaseIdsFromGenes{
 
     if (%duplicates && $WARNINGS){
 	
-	print "The following databaseIds were represented multiple times.\n";
-	print "Each databaseId will only be considered once.\n";
+	print "The following databaseIds were represented multiple times:\n\n";
 
 	foreach my $duplicate (sort keys %duplicates){
 
-	    print $duplicate, " represented by ", join(", ", sort keys %{$duplicates{$duplicate}}), "\n\n";
+	    print $duplicate, " represented by ", join(", ", (sort keys %{$duplicates{$duplicate}})), "\n";
 
 	}
+
+	print "\nEach of these databaseIds will only be considered once.\n";
 
     }
 
@@ -1443,7 +1447,7 @@ sub __processOneGOID{
 
     my $M = $self->__totalNumAnnotationsToGoId($goid);
     my $x = $self->__numAnnotationsToGoId($goid);
-    my $N = $self->__totalNumGenes();
+    my $N = $self->totalNumGenes();
 
     my $pvalue = $self->{$kDistributions}->pValueByHypergeometric($x, $n, $M, $N);
 
@@ -1487,11 +1491,17 @@ sub __totalNumAnnotationsToGoId{
 }
 
 ############################################################################
-sub __totalNumGenes{
+sub totalNumGenes{
 ############################################################################
-# This returns the total number of genes that exist for the particular 
-# organism in question. Unannotated genes are included in this count.
+=pod
 
+=head2 totalNumGenes
+
+This returns the total number of genes that are in the background set
+of genes from which the genes of interest were drawn.  Unannotated
+genes are included in this count.
+
+=cut
 
     return $_[0]->{$kArgs}{totalNumGenes};
 
@@ -1535,25 +1545,24 @@ sub __correctPvaluesBybonferroni{
 
     my $correctionFactor = scalar(@{$self->{$kPvalues}});
 
-    # the correction factor should never be less than 1
+    # no correction needs to be done if there is 0 or 1 hypotheses
+    # that were tested
 
-    if ($correctionFactor < 1){
+    if ($correctionFactor > 1){
 
-	die "Internal Error : The correction factor ($correctionFactor) cannot be less than 1.";
+	# simply go through each hypothesis and calculate the corrected
+	# p-value by multiplying the uncorrected p-value by the number of
+	# nodes in the ontology
 
-    }
+	foreach my $hypothesis ($self->__pValues){
 
-    # simply go through each hypothesis and calculate the corrected
-    # p-value by multiplying the uncorrected p-value by the number of
-    # nodes in the ontology
+	    $hypothesis->{CORRECTED_PVALUE} = $hypothesis->{PVALUE} * $correctionFactor;
 
-    foreach my $hypothesis ($self->__pValues){
+	    # make sure we have a ceiling of 1
 
-	$hypothesis->{CORRECTED_PVALUE} = $hypothesis->{PVALUE} * $correctionFactor;
+	    $hypothesis->{CORRECTED_PVALUE} = 1 if ($hypothesis->{CORRECTED_PVALUE} > 1);
 
-	# make sure we have a ceiling of 1
-
-	$hypothesis->{CORRECTED_PVALUE} = 1 if ($hypothesis->{CORRECTED_PVALUE} > 1);
+	}
 
     }
 
@@ -1749,13 +1758,13 @@ sub __samplingPopulation{
 
     my $populationSize;
 
-    if (! defined $self->__totalNumGenes){
+    if (! defined $self->totalNumGenes){
 
 	$populationSize = scalar @names;
 
     }else{
 
-	$populationSize = $self->__totalNumGenes;
+	$populationSize = $self->totalNumGenes;
 
     }
 

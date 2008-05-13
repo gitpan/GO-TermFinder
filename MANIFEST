@@ -46,7 +46,4 @@ t/GO-Node.t
 t/GO-OntologyProvider-OboParser.t
 t/GO-TermFinder-Native.t
 t/GO-TermFinder-Obo.t
-t/pod-coverage.t
-t/pod.t
-t/strict.t
 VERSION
