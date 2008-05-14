@@ -1,4 +1,4 @@
-GO-TermFinder version 0.80
+GO-TermFinder version 0.82
 ==========================
 
 This set of modules can be have been developed under the auspices of
@@ -50,16 +50,16 @@ distribution:
 
 First decompress the gzipped tarfile, e.g:
 
-   tar zxvf GO-TermFinder-0.8.tar.gz
+   tar zxvf GO-TermFinder-0.82.tar.gz
 
 or:
 
-   gunzip GO-TermFinder-0.8.tar.gz
-   tar xvf GO-TermFinder-0.8.tar
+   gunzip GO-TermFinder-0.82.tar.gz
+   tar xvf GO-TermFinder-0.82.tar
 
 Then change into the created directory:
 
-   cd GO-TermFinder-0.8
+   cd GO-TermFinder-0.82
 
 Then actually install it, using the following commands:
 
@@ -94,8 +94,8 @@ pages, but you can happily ignore these.
 
 In the case that you get any failures during 'make test', rerun the
 tests as 'make test TEST_VERBOSE=1' and send me the full output, and
-let me know what version or perl you are using, and on what platform
-you are running.
+let me know what version of perl you are using, what compiler and
+version you are using, and on what platform you are running.
 
 DEPENDENCIES
 
@@ -216,5 +216,5 @@ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-Copyright (C) 2003-2007 Gavin Sherlock, Stanford University
+Copyright (C) 2003-2008 Gavin Sherlock, Stanford University
 

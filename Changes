@@ -1,5 +1,14 @@
 Revision history for GO-TermFinder group of modules.
 
+0.82 Wed May 14 13:34:01 2008
+
+     	No functional changes.  Regenerated swig wrappers using
+     	1.3.35, in the hope that that might see some of the failures I
+     	am seeing from CPAN testers.  I'm not sure if those errors are
+     	specific to a new version of gcc, or to Perl 5.10.0.  If the
+     	last version worked for you without any errors, you don't need
+     	this one.
+
 0.81 Tue May 13 16:06:55 2008
 
      	- GO::TermFinder

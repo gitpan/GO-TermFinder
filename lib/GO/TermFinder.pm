@@ -4,7 +4,7 @@ package GO::TermFinder;
 # Author      : Gavin Sherlock
 # Date Begun  : December 31st 2002
 
-# $Id: TermFinder.pm,v 1.47 2008/05/13 23:17:33 sherlock Exp $
+# $Id: TermFinder.pm,v 1.48 2008/05/14 20:40:34 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -98,7 +98,7 @@ use vars qw ($PACKAGE $VERSION $WARNINGS);
 use GO::Node;
 use GO::TermFinder::Native;
 
-$VERSION = '0.81';
+$VERSION = '0.82';
 $PACKAGE = 'GO::TermFinder';
 
 $WARNINGS = 1; # toggle this to zero if you don't want warnings
