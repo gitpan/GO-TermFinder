@@ -122,12 +122,33 @@ my $ontology = GO::OntologyProvider::OboParser->new(ontologyFile => $conf->{'ont
 
 my $annotation = GO::AnnotationProvider::AnnotationParser->new(annotationFile=>$conf->{'annotationFile'});
 
-$conf->{'totalNumGenes'} ||= $annotation->numAnnotatedGenes;
+my @additionalArgs;
+
+my @population;
+
+if (exists $conf->{'population'} && defined $conf->{'population'}){
+
+    # they have defined an input file containing genes from which the
+    # listed genes were sampled
+
+    @population = GenesFromFile($conf->{'population'});
+
+    push(@additionalArgs, ('population', \@population));
+
+    $conf->{'totalNumGenes'} = scalar(@population);
+
+}else{
+
+    $conf->{'totalNumGenes'} ||= $annotation->numAnnotatedGenes;
+
+    push(@additionalArgs, ('totalNumGenes', $conf->{'totalNumGenes'}));
+
+}
 
 my $termFinder = GO::TermFinder->new(annotationProvider=> $annotation,
 				     ontologyProvider  => $ontology,
-				     totalNumGenes     => $conf->{'totalNumGenes'},
-				     aspect            => $conf->{'aspect'});
+				     aspect            => $conf->{'aspect'},
+				     @additionalArgs);
 
 my $report  = GO::TermFinderReport::Html->new();
 

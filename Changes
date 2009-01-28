@@ -1,5 +1,22 @@
 Revision history for GO-TermFinder group of modules.
 
+0.83 Thu Jan 22 12:51:03 2009
+
+     	Changed the way in which genes are rendomly chosen from the
+     	background distribution, when calculating FDR, due to a bias
+     	that existed in the algorithm.  Thanks to Peter Wentzell for
+     	pointing this out; also see:
+
+	Flight, R.M and Wentzell, P.D. (2009).  Potential Bias in
+	GO::TermFinder.  Briefings in Bioinformatics, in press.
+
+	In my testing, this improves the FDR when having passed in a
+	list of genes as a background population from which the test
+	set were drawn.  For some reason, it seems to make less
+	significant (higher FDR) those values calculated when the
+	background population of genes is not passed in (and is
+	assumed to be all genes).
+
 0.82 Wed May 14 13:34:01 2008
 
      	No functional changes.  Regenerated swig wrappers using

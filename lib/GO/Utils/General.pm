@@ -84,7 +84,6 @@ will be populated by this function.
 	if ($annotation->nameIsAmbiguous($gene)){
 
 	    push(@{$ambiguousRef}, $gene);
-	    print "$gene is ambiguous\n";
 	    next;
 
 	}
@@ -96,8 +95,6 @@ will be populated by this function.
 	    push(@{$unambiguousRef}, $gene);
 
 	}else{
-
-	    print "not found!\n";
 
 	    push(@{$notFoundRef}, $gene);
 

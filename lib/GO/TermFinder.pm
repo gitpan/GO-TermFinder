@@ -98,7 +98,7 @@ use vars qw ($PACKAGE $VERSION $WARNINGS);
 use GO::Node;
 use GO::TermFinder::Native;
 
-$VERSION = '0.82';
+$VERSION = '0.83';
 $PACKAGE = 'GO::TermFinder';
 
 $WARNINGS = 1; # toggle this to zero if you don't want warnings
@@ -770,7 +770,7 @@ sub __checkAndStoreFindTermsArgs{
 	}
 
 	# Otherwise, we will print a warning that genes were
-	# discarded, but e also provide an API for them to retrieve
+	# discarded, but we also provide an API for them to retrieve
 	# the names of genes that were discarded.
 
 	if (@missingIds){
@@ -1823,37 +1823,31 @@ sub __listOfRandomGenes{
 
     my ($self, $namesRef, $numGenes, $populationSize) = @_;
 
-    # note that this method of choosing random lists of genes
-    # probably perform worse if you try and findTerms for a really
-    # large number of genes.
-    
-    my %usedIndices;
-    
+    # create an array with as many indices as there are genes in the
+    # background set of genes from which those of interest were drawn
+
+    my @indices;
+
+    for (my $i = 0; $i < $populationSize; $i++){
+
+	$indices[$i] = $i;
+
+    }
+
+    # now sample those indices, removing sampled elements as we go.
+    # Use the randomly chosen index to get a random gene, and select
+    # as many random genes as were in the test set
+
     my @list;
-    
-    for (my $j = 0; $j < $numGenes; $j++) {
-	
-	# get a random number
-	
-	my $n = int(rand($populationSize));
-	
-	# keep adding to it until we find one we haven't yet used
-	
-	while (exists ($usedIndices{$n})){
-	    
-	    $n++;
-	    
-	    # wrap round to the beginning if we run off the end of
-	    # the arrays from which we're choosing
-	    
-	    $n = 0 if ($n >= $populationSize);
-	    
-	}
-	
-	push(@list, $namesRef->[$n]);
-	
-	$usedIndices{$n} = undef; # record we've used the gene
-	
+
+    for (my $i = 0; $i < $numGenes; $i++) {
+
+	my $index = int(rand(scalar(@indices))); # random number between 0 and last array index.
+
+	my $selectedIndex = splice(@indices, $index, 1); # Remove the randomly selected element from the array.
+
+	push(@list, $namesRef->[$selectedIndex]);
+
     }
 
     return \@list;
