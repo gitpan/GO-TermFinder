@@ -1,5 +1,10 @@
 Revision history for GO-TermFinder group of modules.
 
+0.85 Thu Oct 29 12:54:55 2009
+
+        Add a missing include file into Distributions.cxx that gets
+        complained about on some platforms
+
 0.84 Thu Oct 29 11:26:46 2009
 
         Added in some additional error checking, that prevents the C++

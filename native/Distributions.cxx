@@ -4,7 +4,7 @@
  * Author      : Ihab A.B. Awad
  * Date Begun  : October 08 2004
  *
- * $Id: Distributions.cxx,v 1.5 2009/10/29 18:30:26 sherlock Exp $
+ * $Id: Distributions.cxx,v 1.6 2009/10/29 19:54:16 sherlock Exp $
  *
  * License information (the MIT license)
  *
@@ -36,6 +36,7 @@
 
 #include <stdio.h>
 #include <math.h>
+#include <stdlib.h>
 
 Distributions::Distributions(const int maxPopulationSize)
 {
