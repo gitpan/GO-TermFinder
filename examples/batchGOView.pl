@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Id: batchGOView.pl,v 1.6 2007/03/18 02:20:34 sherlock Exp $
+# $Id: batchGOView.pl,v 1.7 2009/10/29 18:31:01 sherlock Exp $
 
 # Date   : 4th December 2003
 # Author : Gavin Sherlock

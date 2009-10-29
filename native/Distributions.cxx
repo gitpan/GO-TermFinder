@@ -4,7 +4,7 @@
  * Author      : Ihab A.B. Awad
  * Date Begun  : October 08 2004
  *
- * $Id: Distributions.cxx,v 1.4 2004/10/19 04:46:54 ihab Exp $
+ * $Id: Distributions.cxx,v 1.5 2009/10/29 18:30:26 sherlock Exp $
  *
  * License information (the MIT license)
  *
@@ -56,11 +56,38 @@ Distributions::pValueByHypergeometric(const int x,
   int min = (M < n) ? M : n;
   double pValue = 0;
 
+  /* do some error checking */
+
+  if ((N - M) < (n - x)){
+
+    /* this situation should never arise, because the number of
+     * failures in the sampling cannot exceed the total number of
+     * failures in the population.  For example, if all but one gene
+     * has a particular annotation, then you can't pick 3 genes and
+     * get 2 without it
+     */
+
+    fprintf(stderr, "For N, M, n, x being %d, %d, %d, %d, (N - M) < (n - x), which is impossible\n", N, M, n, x);
+    exit(1);
+	
+  }else if (x > n){
+
+    fprintf(stderr, "For n, x being %d, %d, n < x, which is impossible\n", n, x);
+    exit(1);
+
+  }else if (M > N){
+
+    fprintf(stderr, "For N, M being %d, %d, N < M, which is impossible\n", N, M);
+    exit(1);
+
+  }
+
   for (int i = x; i <= min; i++) {
     pValue += this->hypergeometric(i, n, M, N);
   }
 
   return pValue;
+
 }
 
 double

@@ -1,5 +1,14 @@
 Revision history for GO-TermFinder group of modules.
 
+0.84 Thu Oct 29 11:26:46 2009
+
+        Added in some additional error checking, that prevents the C++
+        code that calculates the probability from being called with
+        invalid arguments, which had caused some segfaults on some
+        platforms, and some p-values greater than 1 on others.  Not
+        clear how the C++ code was being called incorrectly, but this
+        should at least provide a more informative error.
+
 0.83 Thu Jan 22 12:51:03 2009
 
      	Changed the way in which genes are rendomly chosen from the

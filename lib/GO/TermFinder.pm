@@ -4,7 +4,7 @@ package GO::TermFinder;
 # Author      : Gavin Sherlock
 # Date Begun  : December 31st 2002
 
-# $Id: TermFinder.pm,v 1.48 2008/05/14 20:40:34 sherlock Exp $
+# $Id: TermFinder.pm,v 1.50 2009/10/29 18:37:50 sherlock Exp $
 
 # License information (the MIT license)
 
@@ -98,7 +98,7 @@ use vars qw ($PACKAGE $VERSION $WARNINGS);
 use GO::Node;
 use GO::TermFinder::Native;
 
-$VERSION = '0.83';
+$VERSION = '0.84';
 $PACKAGE = 'GO::TermFinder';
 
 $WARNINGS = 1; # toggle this to zero if you don't want warnings
@@ -1449,7 +1449,34 @@ sub __processOneGOID{
     my $x = $self->__numAnnotationsToGoId($goid);
     my $N = $self->totalNumGenes();
 
-    my $pvalue = $self->{$kDistributions}->pValueByHypergeometric($x, $n, $M, $N);
+    # logic checking on data
+
+    if (($N - $M) < ($n - $x)){
+
+	# this situation should never arise, because the number of
+	# failures in the sampling cannot exceed the total number of
+	# failures in the population.  For example, if all but one
+	# gene has a particular annotation, then you can't pick 3
+	# genes and get 2 without it
+
+	die 'For $N, $M, $n, $x being '."$N, $M, $n, $x, ".'($N - $M) < ($n - $x) which is impossible'."\n";
+	
+    }
+
+    my $pvalue;
+
+    if ($M == $N){
+
+	# the p-value must be equal to 1, so we don't even need to
+	# bother calling the p-value code
+
+	$pvalue = 1;
+
+    }else{
+
+	$pvalue = $self->{$kDistributions}->pValueByHypergeometric($x, $n, $M, $N);
+
+    }
 
     my $node = $self->__ontologyProvider->nodeFromId($goid) || $kUnannotatedNode;
 

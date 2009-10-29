@@ -1,6 +1,6 @@
 #XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
 name:         GO-TermFinder
-version:      0.7
+version:      0.84
 version_from: VERSION
 installdirs:  site
 license:      open_source
