@@ -4,7 +4,7 @@
  * Author      : Ihab A.B. Awad
  * Date Begun  : October 08 2004
  *
- * $Id: Distributions.cxx,v 1.6 2009/10/29 19:54:16 sherlock Exp $
+ * $Id: Distributions.cxx,v 1.7 2009/11/19 17:27:52 sherlock Exp $
  *
  * License information (the MIT license)
  *
@@ -85,6 +85,11 @@ Distributions::pValueByHypergeometric(const int x,
 
   for (int i = x; i <= min; i++) {
     pValue += this->hypergeometric(i, n, M, N);
+  }
+
+  if (pValue > 1){ /* fix rounding errors */
+
+    pValue = 1;
   }
 
   return pValue;
